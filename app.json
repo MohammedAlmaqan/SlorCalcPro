@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "SlorCalcPro",
+    "slug": "solarcalcapp",
+    "owner": "merathdev",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "solarcalcapp",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.merathdev.solarcalcpro",
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-build-properties",
+      "./plugins/withNoInternetPermission",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#208AEF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "846fcdc9-f35f-4459-ac01-e5b45812e3f7"
+      }
+    }
+  }
+}
