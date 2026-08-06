@@ -33,7 +33,7 @@
 |-------|-------------|------|--------|
 | P0 | Scaffold (Expo 57, TS strict, lint/prettier, router tabs, Paper theme, eas.json, INTERNET-strip plugin) | 0.5 wk | ✅ Done |
 | P1 | Calculation engine (pure TS, compliance, audit trail, golden tests) | 1.5 wks | ✅ Done |
-| P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ⬜ Not started |
+| P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ✅ Done |
 | P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | ⬜ Not started |
 | P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | ⬜ Not started |
 | P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | ⬜ Not started |
@@ -42,6 +42,19 @@
 ---
 
 ## 3. Detailed Log (most recent first)
+
+### 2026-08-06 — Phase 2 complete (data layer)
+- ✅ `src/db/types.ts` — `DatabaseLike` interface (async SQLite surface: exec/run/getFirst/getAll/transactions) + `SqlResult`; production uses expo-sqlite, tests use node:sqlite.
+- ✅ `src/db/expoSqliteAdapter.ts` — wraps `expo-sqlite` `SQLiteDatabase` as `DatabaseLike` (`lastInsertRowId` matched to expo's casing).
+- ✅ `src/db/__tests__/helpers/nodeDb.ts` — test-only in-memory adapter over `node:sqlite` (never bundled; excluded via `testPathIgnorePatterns`).
+- ✅ `src/db/schema.ts` + `migrate.ts` — versioned migrations via `PRAGMA user_version`; tables: `components`, `psh_locations`, `appliance_presets`, `projects`, `scenarios`, `scenario_loads`, `settings`; FK cascades on; WAL.
+- ✅ `src/db/seed.ts` — idempotent (`INSERT OR IGNORE`) one-time seed; marker `meta.seed_version` in settings so user deletions of reference parts persist.
+- ✅ `src/db/index.ts` — `getDb()`/`initDatabase()`: open → migrate → seed once.
+- ✅ Seed data (`src/data/`): **32 panels**, **26 inverters** (off-grid/hybrid/on-grid), **19 batteries** (LiFePO4/AGM/Flooded), **11 controllers** (MPPT/PWM), cables derived from the engine `CABLE_TABLE`, **37 PSH cities**, **20 appliance presets** — all realistic, consistent values; reference entries marked `is_reference`.
+- ✅ Repos (`src/db/repos/`): `catalog` (typed CRUD by kind, search, favorites, count), `psh` (search + manual locations), `presets` (search + manual), `settings` (typed KV), `projects` (project/scenario/loads CRUD, active-scenario switch, duplicate with fresh ids, `buildInput()` reconstructs a full `SystemInput` with selected components resolved, `saveDesignResult`/`getDesignResult` cache).
+- ✅ Tests: 5 new suites / 23 tests (migrate idempotency + cascades, seed counts + idempotency, catalog CRUD/search/favorites, psh/presets/settings, projects incl. engine round-trip and duplication) — **79/79 total green**.
+- ✅ `tsconfig.json`: `"types": ["jest", "node"]` (needed for `node:sqlite`); added devDep `@types/node`; `jest` config adds `testPathIgnorePatterns` for `__tests__/helpers`.
+- ✅ Gates green: tsc ✓ · eslint ✓ · prettier ✓ · jest 79/79 ✓ · expo-doctor 20/20 ✓ · Metro android bundle export ✓.
 
 ### 2026-08-06 — Phase 1 complete (calculation engine)
 - ✅ `src/core/types.ts` — full domain model (`SystemInput`, `LoadItem`, `DesignResult`, component specs `PanelSpec`/`InverterSpec`/`BatterySpec`/`ChargeControllerSpec`, `CableResult`, `ProtectionResult`, `ComplianceResult`, `EngineeringWarning`, `LoadAudit`).
@@ -85,20 +98,22 @@
 - Quality gates (tsc/eslint/prettier/expo-doctor) installed and passing.
 - Tab placeholder screens for Projects, Catalog, Reports, Settings.
 
-### Phase 1 — Calculation Engine (done)
-- Pure-TS modules for every §2 formula with strict typing and hand-computed golden fixtures.
-- NEC 690/705 + IEC 62548 compliance checks and a capped, serializable audit trail.
-- `designSystem()` end-to-end orchestrator covering off-grid/hybrid/on-grid designs.
-- 56 unit/integration tests green under `jest-expo`.
+### Phase 2 — Data Layer (done)
+- Versioned SQLite schema (`PRAGMA user_version` migrations), idempotent one-time seeding, FK cascades.
+- Curated seed catalog: panels/inverters/batteries/controllers/cables + 37 PSH cities + appliance presets.
+- Repository layer (`catalog`, `psh`, `presets`, `settings`, `projects`) over a platform-agnostic `DatabaseLike` interface (expo-sqlite in-app, node:sqlite in tests).
+- `buildInput()` reconstructs a full engine `SystemInput` from a stored scenario; design-result caching.
+- 23 DB tests green (79 total).
 
 ## 5. Open Items / Blockers
 
-- None. Phase 2 (data layer) is the next work stream.
+- None. Phase 3 (wizard UI) is the next work stream.
 
-## 6. Next Up — Phase 2: Data Layer (SQLite)
-- `expo-sqlite` schema + migrations for projects, load lists, component catalog (panels/inverters/batteries/controllers), PSH locations, wire presets, audit snapshots.
-- Seed data: curated catalog from `referenceComponents.ts`, PSH per `Technical_Studay.md` Annex, presets.
-- Repository modules (`src/data/`) abstracting SQLite + zustand in-memory caching.
+## 6. Next Up — Phase 3: Design Wizard UI
+- zustand stores (`project`, `catalog`, `settings`) wired to the repos; `initDatabase()` in root layout.
+- Projects home: cards, create/duplicate/rename/delete.
+- Wizard steps: load audit (presets + editable appliance rows) → location/PSH → system type/chemistry/voltage → component selection (auto-suggest vs catalog pick) → results (recommendations, warnings, audit trail).
+- Results screen consumes `designSystem()` + stored scenario; Paper MD3 components throughout.
 
 ---
 
