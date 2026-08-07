@@ -165,10 +165,7 @@
 **Remaining / not yet implemented:**
 1. ⏸️ **EAS preview APK result** — build launched by owner (`preview` profile, `--clear-cache`); confirm it succeeds, then install on a real device.
 2. ⏸️ **On-device verification (Phase 5)** — exercise Settings (theme/units/default PSH), wizard expert mode, docs screen, Reports/SLD + PDF export on a real device (emulator approach abandoned: unstable in this 2-vCPU container).
-3. ⬜ **Phase 6 — QA & Ship (not started):**
-   - Final full gate pass (tsc · eslint · prettier · jest · expo-doctor · Metro export).
-   - `npx eas build --profile production --platform android` → release **AAB** (API 36, Play's Aug 31 2026 requirement).
-   - Play Console checklist: store listing + screenshots, Data Safety form, content rating, privacy policy link, internal testing → production rollout, keystore via EAS + Play App Signing.
+3. ⏸️ **Phase 6 — QA & Ship — ON HOLD, do not start until the owner explicitly requests it.** Do NOT run `eas build --profile production` or touch the Play Console until after the `preview` APK has been tested on a real device and any detected issues are fixed. Owner will say the word before Phase 6 begins. Scope when triggered: final gate pass, production **AAB** (API 36), Play Console checklist (listing/screenshots, Data Safety, content rating, privacy policy, internal → production rollout), keystore via EAS + Play App Signing.
 
 **No code blockers.** Phase 5 code is complete and all gates green (108 tests).
 
@@ -181,7 +178,7 @@
 - ✅ PDF branding polish and SLD annotation details (SPD, isolators, ATS) from Phase 4 follow-up.
 - ✅ EAS `preview` APK build launched (owner) — **confirm build result**.
 - ⬜ **On-device verification** (real device, via the preview APK): Settings (theme/units/default PSH), wizard/expert mode, docs screen, Reports/SLD + PDF export.
-- ⬜ Then Phase 6 QA & Ship (production AAB + Play Console checklist) — see Open Items.
+- ⏸️ **Phase 6 QA & Ship — ON HOLD** (owner will request it explicitly after APK testing; do not start preemptively).
 
 ---
 
