@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Text, TextInput, useTheme } from 'react-native-paper';
 
-import { ComponentSlot, PshPicker } from '@/components/pickers';
+import { ComponentSlot, ManualPshDialog, PshPicker } from '@/components/pickers';
 import { NumberField, SegmentedField, StepperField } from '@/components/form';
 import { LoadEditor } from '@/components/LoadEditor';
 import { StepHeader, StepNav } from '@/components/WizardScaffold';
@@ -82,6 +82,7 @@ export function DesignWizard(props: {
   const [selectedControllerId, setSelectedControllerId] = useState<string | null>(
     initial?.selectedControllerId ?? null,
   );
+  const [manualPshOpen, setManualPshOpen] = useState(false);
 
   useEffect(() => {
     if (!reference.loaded) reference.load().catch((e) => console.error('Reference load failed', e));
@@ -310,6 +311,14 @@ export function DesignWizard(props: {
                 setPshLocationId(null);
               }}
             />
+            <Button
+              icon="map-marker-plus-outline"
+              mode="outlined"
+              onPress={() => setManualPshOpen(true)}
+              style={styles.suggestButton}
+            >
+              Add manual location
+            </Button>
             <SectionTitle title="Peak sun hours (manual override)" icon="weather-sunny" />
             <View style={styles.row}>
               <NumberField
@@ -449,6 +458,17 @@ export function DesignWizard(props: {
         nextLabel={step === WIZARD_STEPS ? (saving ? 'Saving…' : 'Save & finish') : 'Next'}
         nextDisabled={step === 1 ? !step1Valid : step === 5 ? !result : false}
         busy={saving}
+      />
+
+      <ManualPshDialog
+        visible={manualPshOpen}
+        onDismiss={() => setManualPshOpen(false)}
+        onAdd={async (entry) => {
+          const location = await reference.addPshManual(entry);
+          setPshLocationId(location.id);
+          setWinterPsh(location.winterPsh);
+          setSummerPsh(location.summerPsh);
+        }}
       />
     </View>
   );

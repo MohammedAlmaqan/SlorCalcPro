@@ -34,7 +34,7 @@
 | P0 | Scaffold (Expo 57, TS strict, lint/prettier, router tabs, Paper theme, eas.json, INTERNET-strip plugin) | 0.5 wk | ✅ Done |
 | P1 | Calculation engine (pure TS, compliance, audit trail, golden tests) | 1.5 wks | ✅ Done |
 | P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ✅ Done |
-| P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | 🔶 In progress (3a: stores + projects + wizard done) |
+| P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | ✅ Done |
 | P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | ⬜ Not started |
 | P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | ⬜ Not started |
 | P6 | QA & Ship (expo-doctor, tests, EAS AAB, Play Console checklist) | 1 wk | ⬜ Not started |
@@ -42,6 +42,13 @@
 ---
 
 ## 3. Detailed Log (most recent first)
+
+### 2026-08-06 — Phase 3 complete (wizard UI)
+- ✅ Catalog tab (`(tabs)/catalog.tsx`): 5 kind tabs (panels/inverters/batteries/controllers/cables), live search (client-side over store + repo), favorite toggle, add/edit/delete with confirm dialogs.
+- ✅ `src/components/CatalogEditor.tsx` — per-kind typed spec forms (numeric/enum/text fields via declarative field definitions); `specToDraft`/`draftToSpec` round-trip tested (3 tests).
+- ✅ Manual PSH entry: `ManualPshDialog` in wizard step 2 ("Add manual location") persists via `pshRepo.addManual` and selects the new location.
+- ✅ Gates green: tsc ✓ · eslint ✓ · prettier ✓ · jest **88/88** ✓ · expo-doctor 20/20 ✓ · Metro bundle export ✓.
+- ✅ Phase 3 fully done — the PLAN's P3 deliverable (projects, load audit, location, system type, component selection, results + warnings) is complete.
 
 ### 2026-08-06 — Phase 3a complete (stores + projects + design wizard)
 - ✅ `src/store/` — `dbService` singleton + zustand slices: `projects` (list, create, duplicate, rename, delete, scenarios CRUD, active switch, design-result cache), `catalog` (typed lists/search/favorites/remove), `reference` (PSH + appliance presets), `settings` (theme mode persisted to SQLite).
@@ -116,15 +123,21 @@
 - `buildInput()` reconstructs a full engine `SystemInput` from a stored scenario; design-result caching.
 - 23 DB tests green (79 total).
 
+### Phase 3 — Wizard UI (done)
+- zustand stores + DB bootstrap gate; projects home with full CRUD; scenario management per project.
+- 5-step design wizard (load audit → location/PSH → system type → components → results with warnings + audit trail), auto-suggest, catalog pickers, manual PSH entry.
+- Catalog tab: searchable, editable, favorites, per-kind spec forms.
+- 88 tests green (jest), expo-doctor 20/20.
+
 ## 5. Open Items / Blockers
 
-- None. Phase 3 (wizard UI) is the next work stream.
+- None. Phase 4 (viz & reports) is the next work stream.
 
-## 6. Next Up — Phase 3: Design Wizard UI
-- zustand stores (`project`, `catalog`, `settings`) wired to the repos; `initDatabase()` in root layout.
-- Projects home: cards, create/duplicate/rename/delete.
-- Wizard steps: load audit (presets + editable appliance rows) → location/PSH → system type/chemistry/voltage → component selection (auto-suggest vs catalog pick) → results (recommendations, warnings, audit trail).
-- Results screen consumes `designSystem()` + stored scenario; Paper MD3 components throughout.
+## 6. Next Up — Phase 4: Visualization & Reports
+- Results screen polish + SLD viewer (react-native-svg single-line diagram: PV→controller→battery→inverter→loads with OCPD/SPD/isolators).
+- PDF design summary via `expo-print` (logo, inputs, results, SLD, BOM).
+- BOM CSV export + project JSON backup/restore.
+- Scenario comparison view (12/24/48 V or on-grid vs hybrid vs off-grid for the same load).
 
 ---
 

@@ -1,10 +1,23 @@
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, List, Searchbar, Text, useTheme } from 'react-native-paper';
+import {
+  Button,
+  Card,
+  Chip,
+  Dialog,
+  List,
+  Portal,
+  Searchbar,
+  Text,
+  TextInput,
+  useTheme,
+} from 'react-native-paper';
 
 import type { AnySpec, SpecByKind } from '@/db/repos/catalog';
 import type { ComponentKind, PshLocation } from '@/data/types';
 import { useCatalogStore } from '@/store/catalog';
+
+import { NumberField } from './form';
 
 /** One-line human summary of a component's key specs. */
 export function specSummary(kind: ComponentKind, spec: AnySpec): string {
@@ -243,6 +256,74 @@ export function ChipList<T>(props: {
   );
 }
 
+export function ManualPshDialog(props: {
+  visible: boolean;
+  onDismiss: () => void;
+  onAdd: (entry: Omit<PshLocation, 'id' | 'isManual'>) => void;
+}) {
+  const { visible, onDismiss, onAdd } = props;
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
+  const [winterPsh, setWinterPsh] = useState<number | null>(4.0);
+  const [summerPsh, setSummerPsh] = useState<number | null>(6.0);
+  const [tilt, setTilt] = useState<number | null>(30);
+
+  const reset = () => {
+    setCity('');
+    setCountry('');
+    setWinterPsh(4.0);
+    setSummerPsh(6.0);
+    setTilt(30);
+  };
+
+  const valid =
+    city.trim() !== '' && country.trim() !== '' && winterPsh != null && summerPsh != null;
+
+  const add = () => {
+    if (!valid) return;
+    onAdd({
+      country: country.trim(),
+      city: city.trim(),
+      winterPsh,
+      summerPsh,
+      recommendedTilt: tilt ?? undefined,
+    });
+    reset();
+    onDismiss();
+  };
+
+  return (
+    <Portal>
+      <Dialog visible={visible} onDismiss={onDismiss}>
+        <Dialog.Title>Manual location</Dialog.Title>
+        <Dialog.ScrollArea>
+          <View style={styles.manual}>
+            <TextInput mode="outlined" label="City *" value={city} onChangeText={setCity} dense />
+            <TextInput
+              mode="outlined"
+              label="Country *"
+              value={country}
+              onChangeText={setCountry}
+              dense
+            />
+            <View style={styles.manualRow}>
+              <NumberField label="Winter PSH" value={winterPsh} onChange={setWinterPsh} unit="h" />
+              <NumberField label="Summer PSH" value={summerPsh} onChange={setSummerPsh} unit="h" />
+            </View>
+            <NumberField label="Recommended tilt" value={tilt} onChange={setTilt} unit="°" />
+          </View>
+        </Dialog.ScrollArea>
+        <Dialog.Actions>
+          <Button onPress={onDismiss}>Cancel</Button>
+          <Button onPress={add} disabled={!valid}>
+            Add
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
+  );
+}
+
 const styles = StyleSheet.create({
   slotCard: {
     marginBottom: 12,
@@ -266,5 +347,13 @@ const styles = StyleSheet.create({
   },
   chip: {
     marginBottom: 4,
+  },
+  manual: {
+    gap: 8,
+    paddingTop: 4,
+  },
+  manualRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
 });
