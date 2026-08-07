@@ -36,12 +36,18 @@
 | P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ✅ Done |
 | P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | ✅ Done |
 | P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | ✅ Done |
-| P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | 🔄 In progress |
+| P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | 🔄 Code done · ⏸️ device verify pending |
 | P6 | QA & Ship (expo-doctor, tests, EAS AAB, Play Console checklist) | 1 wk | ⬜ Not started |
 
 ---
 
 ## 3. Detailed Log (most recent first)
+
+### 2026-08-07 — EAS preview APK build kicked off
+- ✅ Pinned `eas-cli@21.7.0` as devDependency (commit `6b9c71a`) so `npx eas` is reproducible in-repo; verified CLI works headless (`eas-cli/21.7.0`).
+- ✅ Confirmed build config: `eas.json` `preview` profile = APK / internal distribution; `app.json` owner `merathdev`, slug `solarcalcapp`, projectId `846fcdc9-f35f-4459-ac01-e5b45812e3f7`, android package `com.merathdev.solarcalcpro`; no local `android/` dir (CNG).
+- 🚀 Owner logged in via CLI and launched `npx eas build --platform android --profile preview --clear-cache` from their terminal. Build result = ⏳ awaiting owner confirmation (EAS dashboard / `eas build:list`).
+- ⏸️ **On-device verification deferred (flagged):** stood up a headless Android emulator (API 35 google_apis, KVM, Expo Go 57.0.3) in the container and confirmed it boots + loads Metro, but the emulator is unstable on 2 vCPU (adb transport drops ~2 min after boot; guest thrash under swiftshader software rendering). Decision: verify on the EAS preview APK installed on a real device instead.
 
 ### 2026-08-07 — Phase 5: Settings & Polish (units, defaults, expert mode, docs, SLD/PDF polish)
 - ✅ Settings store (`src/store/settings.ts`): theme mode (system/light/dark), `UnitSettings` (power W/kW, length m/ft, cable mm²/AWG, temp °C/°F), default PSH location, wizard/expert mode — all persisted to SQLite.
@@ -52,7 +58,7 @@
 - ✅ Wizard expert mode: all 5 steps in one scroll with section titles + single Save button; default PSH prefill in create mode implemented as *derived state* (no setState-in-effect; user edits always win).
 - ✅ SLD annotations (`src/reports/sld.ts`): added DC isolator, SPD (DC side), AC isolator (when required), and ATS before grid (when required) to the SVG chain; PDF SLD flow and brand header (logo block + tagline) updated to match.
 - ✅ Gates green: tsc ✓ · eslint ✓ (2 pre-existing warnings in `src/db/suggest.ts` only) · prettier ✓ · jest **108/108** ✓ · Metro export ✓ · expo-doctor 20/20 ✓.
-- 📌 Remaining Phase 5: verify on device/emulator, final release-note pass (P6 gates unchanged).
+- 📌 Remaining Phase 5: on-device verification of settings/units/expert/docs/SLD flows (now via the EAS preview APK on a real device), final release-note pass.
 
 ### 2026-08-07 — Phase 4 complete (viz & reports)
 - ✅ Pure-TS report core in `src/reports/`: `bom.ts` (professional BOM with reference-component fallbacks), `csv.ts` (RFC 4180), `jsonIO.ts` (validated project backup/restore with format marker), `comparison.ts` (scenario metric compare), `sld.ts` (single-line diagram layout).
@@ -156,16 +162,26 @@
 
 ## 5. Open Items / Blockers
 
-- None. Phase 5 (units, defaults, dark mode, expert mode, reference docs, SLD/PDF polish) is implemented and green; remaining: on-device verification and the P6 QA/ship pass.
+**Remaining / not yet implemented:**
+1. ⏸️ **EAS preview APK result** — build launched by owner (`preview` profile, `--clear-cache`); confirm it succeeds, then install on a real device.
+2. ⏸️ **On-device verification (Phase 5)** — exercise Settings (theme/units/default PSH), wizard expert mode, docs screen, Reports/SLD + PDF export on a real device (emulator approach abandoned: unstable in this 2-vCPU container).
+3. ⬜ **Phase 6 — QA & Ship (not started):**
+   - Final full gate pass (tsc · eslint · prettier · jest · expo-doctor · Metro export).
+   - `npx eas build --profile production --platform android` → release **AAB** (API 36, Play's Aug 31 2026 requirement).
+   - Play Console checklist: store listing + screenshots, Data Safety form, content rating, privacy policy link, internal testing → production rollout, keystore via EAS + Play App Signing.
+
+**No code blockers.** Phase 5 code is complete and all gates green (108 tests).
 
 ---
 
-## 6. Next Up — Phase 5: Settings & Polish (in progress)
+## 6. Next Up — Phase 5: Settings & Polish (code done)
 
 - ✅ Units & number formatting options, default PSH location, dark mode.
 - ✅ Wizard/expert mode, expanded reference docs (NEC 690/705, IEC 62548).
 - ✅ PDF branding polish and SLD annotation details (SPD, isolators, ATS) from Phase 4 follow-up.
-- ⬜ On-device verification of settings/units/expert flows; then P6 QA & ship.
+- ✅ EAS `preview` APK build launched (owner) — **confirm build result**.
+- ⬜ **On-device verification** (real device, via the preview APK): Settings (theme/units/default PSH), wizard/expert mode, docs screen, Reports/SLD + PDF export.
+- ⬜ Then Phase 6 QA & Ship (production AAB + Play Console checklist) — see Open Items.
 
 ---
 
