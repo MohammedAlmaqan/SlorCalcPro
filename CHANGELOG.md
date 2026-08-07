@@ -34,7 +34,7 @@
 | P0 | Scaffold (Expo 57, TS strict, lint/prettier, router tabs, Paper theme, eas.json, INTERNET-strip plugin) | 0.5 wk | ✅ Done |
 | P1 | Calculation engine (pure TS, compliance, audit trail, golden tests) | 1.5 wks | ✅ Done |
 | P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ✅ Done |
-| P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | ⬜ Not started |
+| P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | 🔶 In progress (3a: stores + projects + wizard done) |
 | P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | ⬜ Not started |
 | P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | ⬜ Not started |
 | P6 | QA & Ship (expo-doctor, tests, EAS AAB, Play Console checklist) | 1 wk | ⬜ Not started |
@@ -42,6 +42,17 @@
 ---
 
 ## 3. Detailed Log (most recent first)
+
+### 2026-08-06 — Phase 3a complete (stores + projects + design wizard)
+- ✅ `src/store/` — `dbService` singleton + zustand slices: `projects` (list, create, duplicate, rename, delete, scenarios CRUD, active switch, design-result cache), `catalog` (typed lists/search/favorites/remove), `reference` (PSH + appliance presets), `settings` (theme mode persisted to SQLite).
+- ✅ `src/app/_layout.tsx` — DB bootstrap gate: `initDatabase()` → `setDbService()` → load settings/reference → hide splash; theme follows persisted mode.
+- ✅ `src/db/suggest.ts` — auto-suggest engine (pure, unit-tested): panel (min panels within MPPT string limits), inverter (smallest sufficient, surge + voltage match), battery (fewest cells meeting kWh at system voltage, chemistry-aware), controller (MPPT/PWM by size, min current + max PV voltage). 6 tests.
+- ✅ `src/components/` — reusable Paper UI: `form.tsx` (NumberField/Stepper/Segmented/Toggle), `LoadEditor.tsx` (preset-driven editable load rows), `pickers.tsx` (searchable `ComponentSlot` + `PshPicker`), `results.tsx` (StatCard/WarningsList/AuditTrail), `WizardScaffold.tsx` (step header + nav).
+- ✅ Projects home (`(tabs)/index.tsx`): project cards, FAB create, duplicate/rename/delete menus + confirm dialogs, empty state, pull-to-refresh.
+- ✅ Design wizard (`src/components/DesignWizard.tsx`, routes `project/new` · `project/scenario/[scenarioId]`): 5 steps — project & load audit → location/PSH (city picker + manual override + min temp) → system type/chemistry/autonomy/voltage → component selection (auto-suggest or catalog pick; battery/controller hidden for on-grid) → live results (stat cards, compliance warnings, cables/OCPD summary, full audit trail). Save runs `designSystem()`, persists scenario patch + design result, and navigates on finish. Create + edit modes.
+- ✅ Project detail (`project/[id].tsx`): scenario cards (active badge, design summary), set-active/edit/delete scenario, add scenario, rename/delete project.
+- ✅ Gates green: tsc ✓ · eslint ✓ · prettier ✓ · jest **85/85** ✓ · expo-doctor ✓ · Metro bundle export ✓.
+- 📌 Follow-ups: catalog tab full management UI (add/edit/delete parts), manual PSH add in wizard, wizard/expert mode & units (Phase 5).
 
 ### 2026-08-06 — Phase 2 complete (data layer)
 - ✅ `src/db/types.ts` — `DatabaseLike` interface (async SQLite surface: exec/run/getFirst/getAll/transactions) + `SqlResult`; production uses expo-sqlite, tests use node:sqlite.
