@@ -6,6 +6,7 @@ import type {
   SystemType,
   SystemVoltage,
 } from '../../core/types';
+import type { ProjectExport } from '../../reports/jsonIO';
 import type { PshLocation } from '../../data/types';
 import { newId } from '../../utils/id';
 import type { DatabaseLike } from '../types';
@@ -175,6 +176,7 @@ export interface ProjectRepo {
   ): Promise<void>;
   deleteProject(id: string): Promise<void>;
   duplicateProject(id: string): Promise<ProjectWithScenarios>;
+  importProject(backup: ProjectExport): Promise<ProjectWithScenarios>;
 
   getScenario(scenarioId: string): Promise<ScenarioRecord | null>;
   addScenario(projectId: string, patch?: ScenarioPatch): Promise<ScenarioRecord>;
@@ -432,6 +434,65 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
       const project = await (await projectRepo(db)).getProject(projectId);
       if (!project) throw new Error('Failed to duplicate project');
       return project;
+    },
+
+    importProject: async (backup) => {
+      const projectId = newId();
+      const project = backup.project;
+      await db.withExclusiveTransactionAsync(async (txn) => {
+        await txn.runAsync(
+          `INSERT INTO projects (id, name, client_name, notes)
+           VALUES (?, ?, ?, ?)`,
+          [projectId, project.name, project.clientName, project.notes],
+        );
+        for (const scenario of project.scenarios) {
+          const scenarioId = newId();
+          await txn.runAsync(
+            `INSERT INTO scenarios
+              (id, project_id, name, is_active, system_type, system_voltage_v, chemistry,
+               autonomy_days, winter_psh, summer_psh, psh_location_id, inverter_efficiency,
+               system_loss_factor, dc_voltage_drop_percent, ac_voltage_drop_percent,
+               min_temperature_c, temp_derating_factor, pv_cable_length_m, dc_cable_length_m,
+               ac_cable_length_m, busbar_rating_a, main_breaker_a, selected_panel_id,
+               selected_inverter_id, selected_battery_id, selected_controller_id,
+               design_result_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              scenarioId,
+              projectId,
+              scenario.name,
+              scenario.isActive ? 1 : 0,
+              scenario.systemType,
+              scenario.systemVoltageV,
+              scenario.chemistry,
+              scenario.autonomyDays,
+              scenario.winterPsh,
+              scenario.summerPsh,
+              scenario.pshLocationId,
+              scenario.inverterEfficiency,
+              scenario.systemLossFactor,
+              scenario.dcVoltageDropPercent,
+              scenario.acVoltageDropPercent,
+              scenario.minTemperatureC,
+              scenario.tempDeratingFactor,
+              scenario.pvCableLengthM,
+              scenario.dcCableLengthM,
+              scenario.acCableLengthM,
+              scenario.busbarRatingA,
+              scenario.mainBreakerA,
+              scenario.selectedPanelId,
+              scenario.selectedInverterId,
+              scenario.selectedBatteryId,
+              scenario.selectedControllerId,
+              scenario.designResult ? JSON.stringify(scenario.designResult) : null,
+            ],
+          );
+          await insertLoads(scenarioId, scenario.loads);
+        }
+      });
+      const imported = await (await projectRepo(db)).getProject(projectId);
+      if (!imported) throw new Error('Failed to import project');
+      return imported;
     },
 
     getScenario: async (scenarioId) => loadScenario(await buildScenarioRow(scenarioId)),

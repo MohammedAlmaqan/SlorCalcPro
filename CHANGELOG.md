@@ -35,7 +35,7 @@
 | P1 | Calculation engine (pure TS, compliance, audit trail, golden tests) | 1.5 wks | ✅ Done |
 | P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ✅ Done |
 | P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | ✅ Done |
-| P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | ⬜ Not started |
+| P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | 🔄 In progress |
 | P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | ⬜ Not started |
 | P6 | QA & Ship (expo-doctor, tests, EAS AAB, Play Console checklist) | 1 wk | ⬜ Not started |
 
@@ -129,15 +129,25 @@
 - Catalog tab: searchable, editable, favorites, per-kind spec forms.
 - 88 tests green (jest), expo-doctor 20/20.
 
+### Phase 4 — Viz & Reports (in progress)
+- Pure-TS report core in `src/reports/`: `bom.ts` (professional BOM with reference-component fallbacks), `csv.ts` (RFC 4180), `jsonIO.ts` (validated project backup/restore with format marker), `comparison.ts` (scenario metric compare), `sld.ts` (single-line diagram layout: PV→OCPD→controller→inverter→AC breaker→loads, battery branch off-grid).
+- `pdfTemplate.ts` print-ready HTML (overview stats, HTML SLD, load audit, electrical summary, warnings, BOM) → expo-print.
+- `SldView.tsx` react-native-svg renderer (color-coded node types, dashed DC branch, horizontal scroll).
+- Reports tab: project/scenario pickers, stats + SLD + warnings, PDF/BOM CSV/JSON export via expo-print + expo-sharing, JSON restore via `File.pickFileAsync`, inline scenario comparison table.
+- `projectRepo.importProject()` + store `importProject` for JSON restore.
+- 101 tests green (jest), expo-doctor 20/20, Metro export OK.
+
 ## 5. Open Items / Blockers
 
-- None. Phase 4 (viz & reports) is the next work stream.
+- None. Phase 4 core (reports, SLD, PDF, backup/restore, compare) is implemented; remaining polish: PDF branding/logo asset, SLD SPD/isolator annotations in the SVG view.
 
-## 6. Next Up — Phase 4: Visualization & Reports
-- Results screen polish + SLD viewer (react-native-svg single-line diagram: PV→controller→battery→inverter→loads with OCPD/SPD/isolators).
-- PDF design summary via `expo-print` (logo, inputs, results, SLD, BOM).
-- BOM CSV export + project JSON backup/restore.
-- Scenario comparison view (12/24/48 V or on-grid vs hybrid vs off-grid for the same load).
+---
+
+## 6. Next Up — Phase 5: Settings & Polish
+
+- Units & number formatting options, default PSH location, dark mode.
+- Wizard/expert mode, expanded reference docs (NEC 690/705, IEC 62548).
+- PDF branding polish and SLD annotation details (SPD, isolators, ATS) from Phase 4 follow-up.
 
 ---
 

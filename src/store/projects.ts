@@ -9,7 +9,6 @@ import type {
 import { projectRepo } from '../db/repos/projects';
 import type { DesignResult, LoadItem } from '../core/types';
 import { getDbService } from './dbService';
-
 interface ProjectState {
   projects: ProjectRecord[];
   activeProject: ProjectWithScenarios | null;
@@ -32,6 +31,7 @@ interface ProjectState {
     patch: Partial<Pick<ProjectRecord, 'name' | 'clientName' | 'notes'>>,
   ) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  importProject: (backup: import('../reports/jsonIO').ProjectExport) => Promise<void>;
 
   setActiveScenario: (scenarioId: string) => Promise<void>;
   addScenario: (patch?: ScenarioPatch) => Promise<void>;
@@ -98,6 +98,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   remove: async (id) => {
     await repo().deleteProject(id);
     if (get().activeProject?.id === id) set({ activeProject: null, activeScenario: null });
+    await get().refresh();
+  },
+
+  importProject: async (backup) => {
+    await repo().importProject(backup);
     await get().refresh();
   },
 
