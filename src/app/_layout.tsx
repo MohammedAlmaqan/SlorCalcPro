@@ -58,6 +58,7 @@ export default function RootLayout() {
           <Stack.Screen name="project/new" />
           <Stack.Screen name="project/[id]" />
           <Stack.Screen name="project/scenario/[scenarioId]" />
+          <Stack.Screen name="docs" />
         </Stack>
       </PaperProvider>
     </SafeAreaProvider>

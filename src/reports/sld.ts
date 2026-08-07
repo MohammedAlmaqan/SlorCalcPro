@@ -62,7 +62,18 @@ export function buildSldDiagram(result: DesignResult): SldDiagram {
   });
   edges.push({ id: 'e-pv-ocpd', from: 'pv', to: 'pv-ocpd' });
 
-  // 3. Charge controller (off-grid) — hybrid/on-grid skip to inverter
+  // 3. DC isolator switch
+  chain.push({
+    id: 'dc-isolator',
+    type: 'protection',
+    label: 'DC isolator',
+    sublabel: protection.dcIsolatorRequired ? 'required' : 'optional',
+    x: 0,
+    y: CHAIN_Y,
+  });
+  edges.push({ id: 'e-ocpd-isolator', from: 'pv-ocpd', to: 'dc-isolator' });
+
+  // 4. Charge controller (off-grid) — hybrid/on-grid skip to inverter
   if (isOffGrid) {
     chain.push({
       id: 'controller',
@@ -72,10 +83,25 @@ export function buildSldDiagram(result: DesignResult): SldDiagram {
       x: 0,
       y: CHAIN_Y,
     });
-    edges.push({ id: 'e-ocpd-controller', from: 'pv-ocpd', to: 'controller' });
+    edges.push({ id: 'e-isolator-controller', from: 'dc-isolator', to: 'controller' });
   }
 
-  // 4. Inverter
+  // 5. SPD (DC side for storage systems)
+  chain.push({
+    id: 'spd',
+    type: 'protection',
+    label: 'SPD',
+    sublabel: protection.spdType,
+    x: 0,
+    y: CHAIN_Y,
+  });
+  edges.push({
+    id: isOffGrid ? 'e-controller-spd' : 'e-isolator-spd',
+    from: isOffGrid ? 'controller' : 'dc-isolator',
+    to: 'spd',
+  });
+
+  // 6. Inverter
   const inverterLabel = isOnGrid ? 'Grid inverter' : 'Inverter';
   const inverterSublabel = `${inverter.selectedContinuousWatts ?? inverter.recommendedContinuousWatts} W · ${inverter.recommendedType}`;
   chain.push({
@@ -86,13 +112,9 @@ export function buildSldDiagram(result: DesignResult): SldDiagram {
     x: 0,
     y: CHAIN_Y,
   });
-  edges.push({
-    id: isOffGrid ? 'e-controller-inverter' : 'e-ocpd-inverter',
-    from: isOffGrid ? 'controller' : 'pv-ocpd',
-    to: 'inverter',
-  });
+  edges.push({ id: 'e-spd-inverter', from: 'spd', to: 'inverter' });
 
-  // 5. AC breaker
+  // 7. AC breaker
   chain.push({
     id: 'ac-breaker',
     type: 'protection',
@@ -103,7 +125,20 @@ export function buildSldDiagram(result: DesignResult): SldDiagram {
   });
   edges.push({ id: 'e-inverter-breaker', from: 'inverter', to: 'ac-breaker' });
 
-  // 6. Loads / main panel
+  // 8. AC isolator / disconnect
+  if (protection.acIsolatorRequired) {
+    chain.push({
+      id: 'ac-isolator',
+      type: 'protection',
+      label: 'AC isolator',
+      sublabel: `${protection.acBreakerStandardA} A`,
+      x: 0,
+      y: CHAIN_Y,
+    });
+    edges.push({ id: 'e-breaker-acisolator', from: 'ac-breaker', to: 'ac-isolator' });
+  }
+
+  // 9. Loads / main panel
   chain.push({
     id: 'loads',
     type: 'load',
@@ -112,19 +147,38 @@ export function buildSldDiagram(result: DesignResult): SldDiagram {
     x: 0,
     y: CHAIN_Y,
   });
-  edges.push({ id: 'e-breaker-loads', from: 'ac-breaker', to: 'loads' });
+  edges.push({
+    id: protection.acIsolatorRequired ? 'e-acisolator-loads' : 'e-breaker-loads',
+    from: protection.acIsolatorRequired ? 'ac-isolator' : 'ac-breaker',
+    to: 'loads',
+  });
 
-  // Grid connection (on-grid / hybrid)
+  // 10. Grid connection (on-grid / hybrid) via ATS when required
   if (!isOffGrid) {
+    if (protection.atsRequired) {
+      chain.push({
+        id: 'ats',
+        type: 'protection',
+        label: 'ATS',
+        sublabel: '< 20 ms transfer',
+        x: 0,
+        y: CHAIN_Y,
+      });
+      edges.push({ id: 'e-loads-ats', from: 'loads', to: 'ats' });
+    }
     chain.push({
       id: 'grid',
       type: 'grid',
       label: 'Grid',
-      sublabel: protection.atsRequired ? 'via ATS' : 'connection',
+      sublabel: 'connection',
       x: 0,
       y: CHAIN_Y,
     });
-    edges.push({ id: 'e-loads-grid', from: 'loads', to: 'grid' });
+    edges.push({
+      id: protection.atsRequired ? 'e-ats-grid' : 'e-loads-grid',
+      from: protection.atsRequired ? 'ats' : 'loads',
+      to: 'grid',
+    });
   }
 
   // Position the chain horizontally.

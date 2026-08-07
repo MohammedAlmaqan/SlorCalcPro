@@ -35,13 +35,31 @@
 | P1 | Calculation engine (pure TS, compliance, audit trail, golden tests) | 1.5 wks | ✅ Done |
 | P2 | Data layer (SQLite schema/migrations, seeds: catalog/PSH/presets, repos) | 1 wk | ✅ Done |
 | P3 | Wizard UI (projects, load audit, location, system type, components, results) | 2 wks | ✅ Done |
-| P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | 🔄 In progress |
-| P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | ⬜ Not started |
+| P4 | Viz & reports (SLD via SVG, PDF, BOM CSV, JSON backup/restore, scenario compare) | 1.5 wks | ✅ Done |
+| P5 | Settings & polish (units, defaults, dark mode, wizard/expert, reference docs) | 1 wk | 🔄 In progress |
 | P6 | QA & Ship (expo-doctor, tests, EAS AAB, Play Console checklist) | 1 wk | ⬜ Not started |
 
 ---
 
 ## 3. Detailed Log (most recent first)
+
+### 2026-08-07 — Phase 5: Settings & Polish (units, defaults, expert mode, docs, SLD/PDF polish)
+- ✅ Settings store (`src/store/settings.ts`): theme mode (system/light/dark), `UnitSettings` (power W/kW, length m/ft, cable mm²/AWG, temp °C/°F), default PSH location, wizard/expert mode — all persisted to SQLite.
+- ✅ `src/utils/format.ts` + hook `src/hooks/useUnitFormatters.ts` — pure number/power/length/cable/temperature formatting (formula-based AWG↔mm², no lookup drift); 7 unit tests.
+- ✅ Settings tab (`(tabs)/settings.tsx`): Appearance (theme), Units (segmented pickers), Design defaults (default PSH location via `PshPicker`, wizard/expert toggle), link to reference docs.
+- ✅ Engineering reference docs (`src/app/docs.tsx`, in root Stack): NEC 690.7/690.8/690.9/705.12(B)/705.14 + IEC 62548 cards mirroring `src/core/standards/`; back via `router.back()`.
+- ✅ Units wired end-to-end: wizard results, Reports stats, PDF (`createFormatters`), BOM (`formatCableSize`).
+- ✅ Wizard expert mode: all 5 steps in one scroll with section titles + single Save button; default PSH prefill in create mode implemented as *derived state* (no setState-in-effect; user edits always win).
+- ✅ SLD annotations (`src/reports/sld.ts`): added DC isolator, SPD (DC side), AC isolator (when required), and ATS before grid (when required) to the SVG chain; PDF SLD flow and brand header (logo block + tagline) updated to match.
+- ✅ Gates green: tsc ✓ · eslint ✓ (2 pre-existing warnings in `src/db/suggest.ts` only) · prettier ✓ · jest **108/108** ✓ · Metro export ✓ · expo-doctor 20/20 ✓.
+- 📌 Remaining Phase 5: verify on device/emulator, final release-note pass (P6 gates unchanged).
+
+### 2026-08-07 — Phase 4 complete (viz & reports)
+- ✅ Pure-TS report core in `src/reports/`: `bom.ts` (professional BOM with reference-component fallbacks), `csv.ts` (RFC 4180), `jsonIO.ts` (validated project backup/restore with format marker), `comparison.ts` (scenario metric compare), `sld.ts` (single-line diagram layout).
+- ✅ `pdfTemplate.ts` print-ready HTML (overview stats, HTML SLD, load audit, electrical summary, warnings, BOM) → expo-print; `SldView.tsx` react-native-svg renderer (color-coded node types, dashed DC branch, horizontal scroll).
+- ✅ Reports tab (`(tabs)/reports.tsx`): project/scenario pickers, stats + SLD + warnings, PDF/BOM CSV/JSON export via expo-print + expo-sharing, JSON restore via `File.pickFileAsync`, inline scenario comparison table.
+- ✅ `projectRepo.importProject()` + store `importProject` for JSON restore.
+- ✅ 13 report tests; jest **101/101** green, tsc ✓, eslint ✓, prettier ✓, Metro export ✓, expo-doctor 20/20 ✓.
 
 ### 2026-08-06 — Phase 3 complete (wizard UI)
 - ✅ Catalog tab (`(tabs)/catalog.tsx`): 5 kind tabs (panels/inverters/batteries/controllers/cables), live search (client-side over store + repo), favorite toggle, add/edit/delete with confirm dialogs.
@@ -129,25 +147,25 @@
 - Catalog tab: searchable, editable, favorites, per-kind spec forms.
 - 88 tests green (jest), expo-doctor 20/20.
 
-### Phase 4 — Viz & Reports (in progress)
-- Pure-TS report core in `src/reports/`: `bom.ts` (professional BOM with reference-component fallbacks), `csv.ts` (RFC 4180), `jsonIO.ts` (validated project backup/restore with format marker), `comparison.ts` (scenario metric compare), `sld.ts` (single-line diagram layout: PV→OCPD→controller→inverter→AC breaker→loads, battery branch off-grid).
-- `pdfTemplate.ts` print-ready HTML (overview stats, HTML SLD, load audit, electrical summary, warnings, BOM) → expo-print.
-- `SldView.tsx` react-native-svg renderer (color-coded node types, dashed DC branch, horizontal scroll).
-- Reports tab: project/scenario pickers, stats + SLD + warnings, PDF/BOM CSV/JSON export via expo-print + expo-sharing, JSON restore via `File.pickFileAsync`, inline scenario comparison table.
-- `projectRepo.importProject()` + store `importProject` for JSON restore.
-- 101 tests green (jest), expo-doctor 20/20, Metro export OK.
+### Phase 4 — Viz & Reports (done)
+- Pure-TS report core in `src/reports/`: `bom.ts`, `csv.ts` (RFC 4180), `jsonIO.ts` (validated backup/restore), `comparison.ts`, `sld.ts` (SVG single-line diagram with battery branch).
+- `pdfTemplate.ts` print-ready HTML → expo-print; `SldView.tsx` react-native-svg renderer.
+- Reports tab: stats + SLD + warnings, PDF/BOM CSV/JSON export, JSON restore, scenario comparison.
+- `projectRepo.importProject()` + store `importProject`.
+- 13 report tests; jest 101/101 green, expo-doctor 20/20, Metro export OK.
 
 ## 5. Open Items / Blockers
 
-- None. Phase 4 core (reports, SLD, PDF, backup/restore, compare) is implemented; remaining polish: PDF branding/logo asset, SLD SPD/isolator annotations in the SVG view.
+- None. Phase 5 (units, defaults, dark mode, expert mode, reference docs, SLD/PDF polish) is implemented and green; remaining: on-device verification and the P6 QA/ship pass.
 
 ---
 
-## 6. Next Up — Phase 5: Settings & Polish
+## 6. Next Up — Phase 5: Settings & Polish (in progress)
 
-- Units & number formatting options, default PSH location, dark mode.
-- Wizard/expert mode, expanded reference docs (NEC 690/705, IEC 62548).
-- PDF branding polish and SLD annotation details (SPD, isolators, ATS) from Phase 4 follow-up.
+- ✅ Units & number formatting options, default PSH location, dark mode.
+- ✅ Wizard/expert mode, expanded reference docs (NEC 690/705, IEC 62548).
+- ✅ PDF branding polish and SLD annotation details (SPD, isolators, ATS) from Phase 4 follow-up.
+- ⬜ On-device verification of settings/units/expert flows; then P6 QA & ship.
 
 ---
 

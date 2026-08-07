@@ -33,6 +33,8 @@ import { suggestComponents } from '@/db/suggest';
 import { useCatalogStore } from '@/store/catalog';
 import { useProjectStore } from '@/store/projects';
 import { useReferenceStore } from '@/store/reference';
+import { useSettingsStore } from '@/store/settings';
+import { useUnitFormatters } from '@/hooks/useUnitFormatters';
 
 export const WIZARD_STEPS = 5;
 
@@ -57,8 +59,8 @@ export function DesignWizard(props: {
   const [clientName, setClientName] = useState('');
   const [loads, setLoads] = useState<LoadItem[]>(initial?.loads ?? []);
   const [systemType, setSystemType] = useState<SystemType>(initial?.systemType ?? 'off-grid');
-  const [winterPsh, setWinterPsh] = useState<number | null>(initial?.winterPsh ?? 4.0);
-  const [summerPsh, setSummerPsh] = useState<number | null>(initial?.summerPsh ?? 6.0);
+  const [winterPsh, setWinterPsh] = useState<number | null>(initial?.winterPsh ?? null);
+  const [summerPsh, setSummerPsh] = useState<number | null>(initial?.summerPsh ?? null);
   const [pshLocationId, setPshLocationId] = useState<string | null>(
     initial?.pshLocation?.id ?? null,
   );
@@ -93,6 +95,19 @@ export function DesignWizard(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Pre-fill from the configured default PSH location in create mode, derived
+  // rather than stored so no state is set inside an effect. Explicit user edits
+  // (pshLocationId / winterPsh / summerPsh) always win over the default.
+  const defaultPshLocationId = useSettingsStore((s) => s.defaultPshLocationId);
+  const effectiveLocation = useMemo(() => {
+    if (mode !== 'create') return null;
+    const id = pshLocationId ?? defaultPshLocationId;
+    return reference.psh.find((l) => l.id === id) ?? null;
+  }, [mode, pshLocationId, defaultPshLocationId, reference.psh]);
+  const effectivePshLocationId = effectiveLocation?.id ?? pshLocationId;
+  const effectiveWinterPsh = winterPsh ?? effectiveLocation?.winterPsh ?? 4.0;
+  const effectiveSummerPsh = summerPsh ?? effectiveLocation?.summerPsh ?? 6.0;
+
   const resolved = useMemo<NonNullable<SystemInput['selected']>>(() => {
     const panel = selectedPanelId
       ? (lists.panel?.find((r) => r.id === selectedPanelId)?.spec as PanelSpec | undefined)
@@ -114,8 +129,8 @@ export function DesignWizard(props: {
     return {
       loads,
       systemType,
-      winterPsh: winterPsh ?? 4.0,
-      summerPsh: summerPsh ?? 6.0,
+      winterPsh: effectiveWinterPsh,
+      summerPsh: effectiveSummerPsh,
       autonomyDays,
       chemistry,
       systemVoltageOverride: voltage === 'auto' ? undefined : (Number(voltage) as SystemVoltage),
@@ -130,8 +145,8 @@ export function DesignWizard(props: {
   }, [
     loads,
     systemType,
-    winterPsh,
-    summerPsh,
+    effectiveWinterPsh,
+    effectiveSummerPsh,
     autonomyDays,
     chemistry,
     voltage,
@@ -211,9 +226,9 @@ export function DesignWizard(props: {
         systemVoltageV: voltage === 'auto' ? null : (Number(voltage) as SystemVoltage),
         chemistry,
         autonomyDays,
-        winterPsh: winterPsh ?? 4.0,
-        summerPsh: summerPsh ?? 6.0,
-        pshLocationId,
+        winterPsh: effectiveWinterPsh,
+        summerPsh: effectiveSummerPsh,
+        pshLocationId: effectivePshLocationId,
         minTemperatureC,
         selectedPanelId,
         selectedInverterId,
@@ -253,212 +268,250 @@ export function DesignWizard(props: {
     else save();
   };
 
+  const wizardMode = useSettingsStore((s) => s.wizardMode);
+  const expert = wizardMode === 'expert';
+
+  const step1 = (
+    <View style={styles.gap}>
+      {mode === 'create' ? (
+        <>
+          <Card mode="outlined">
+            <Card.Content style={styles.gap}>
+              <TextInput
+                mode="outlined"
+                label="Project name *"
+                value={projectName}
+                onChangeText={setProjectName}
+                dense
+              />
+              <TextInput
+                mode="outlined"
+                label="Client name"
+                value={clientName}
+                onChangeText={setClientName}
+                dense
+              />
+            </Card.Content>
+          </Card>
+          <SectionTitle title="Load audit" icon="format-list-bulleted" />
+          <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
+        </>
+      ) : (
+        <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
+      )}
+    </View>
+  );
+
+  const step2 = (
+    <View style={styles.gap}>
+      <PshPicker
+        locations={reference.psh}
+        selectedId={effectivePshLocationId}
+        onSelect={(location) => {
+          setPshLocationId(location.id);
+          setWinterPsh(location.winterPsh);
+          setSummerPsh(location.summerPsh);
+        }}
+        onClear={() => {
+          setPshLocationId(null);
+        }}
+      />
+      <Button
+        icon="map-marker-plus-outline"
+        mode="outlined"
+        onPress={() => setManualPshOpen(true)}
+        style={styles.suggestButton}
+      >
+        Add manual location
+      </Button>
+      <SectionTitle title="Peak sun hours (manual override)" icon="weather-sunny" />
+      <View style={styles.row}>
+        <NumberField
+          label="Winter PSH"
+          value={effectiveWinterPsh}
+          onChange={setWinterPsh}
+          unit="h/day"
+        />
+        <NumberField
+          label="Summer PSH"
+          value={effectiveSummerPsh}
+          onChange={setSummerPsh}
+          unit="h/day"
+        />
+      </View>
+      <NumberField
+        label="Min. ambient temperature"
+        value={minTemperatureC}
+        onChange={setMinTemperatureC}
+        unit="°C"
+        helperText="Used for worst-cold Voc derating (NEC 690.7)."
+      />
+    </View>
+  );
+
+  const step3 = (
+    <View style={styles.gap}>
+      <SegmentedField
+        label="System type"
+        value={systemType}
+        onChange={(v) => setSystemType(v as SystemType)}
+        options={[
+          { value: 'on-grid', label: 'On-grid' },
+          { value: 'hybrid', label: 'Hybrid' },
+          { value: 'off-grid', label: 'Off-grid' },
+        ]}
+      />
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        {SYSTEM_TYPE_HELP[systemType]}
+      </Text>
+      {!isOnGrid ? (
+        <>
+          <StepperField
+            label="Days of autonomy"
+            value={autonomyDays}
+            onChange={setAutonomyDays}
+            min={1}
+            max={10}
+          />
+          <SegmentedField
+            label="Battery chemistry"
+            value={chemistry}
+            onChange={(v) => setChemistry(v as BatteryChemistry)}
+            options={[
+              { value: 'lifepo4', label: 'LiFePO4' },
+              { value: 'agm-gel', label: 'AGM/Gel' },
+              { value: 'flooded', label: 'Flooded' },
+            ]}
+          />
+        </>
+      ) : null}
+      <SegmentedField
+        label="System voltage"
+        value={voltage}
+        onChange={(v) => setVoltage(v as VoltageChoice)}
+        options={[
+          { value: 'auto', label: 'Auto' },
+          { value: '12', label: '12 V' },
+          { value: '24', label: '24 V' },
+          { value: '48', label: '48 V' },
+        ]}
+      />
+    </View>
+  );
+
+  const step4 = (
+    <View style={styles.gap}>
+      <Button
+        mode="contained-tonal"
+        icon="auto-fix"
+        onPress={autoSuggest}
+        loading={busy}
+        style={styles.suggestButton}
+      >
+        Auto-suggest components
+      </Button>
+      <ComponentSlot
+        kind="panel"
+        label="PV panel"
+        selectedId={selectedPanelId}
+        onSelect={setSelectedPanelId}
+        helperText="Minimizes panel count within the MPPT string limits."
+      />
+      <ComponentSlot
+        kind="inverter"
+        label="Inverter"
+        selectedId={selectedInverterId}
+        onSelect={setSelectedInverterId}
+        helperText={
+          isOnGrid ? 'Grid-tied string inverter.' : 'Must match the battery bank voltage.'
+        }
+      />
+      {!isOnGrid ? (
+        <ComponentSlot
+          kind="battery"
+          label="Battery"
+          selectedId={selectedBatteryId}
+          onSelect={setSelectedBatteryId}
+          helperText={`Matched to ${chemistry} chemistry and ${voltage === 'auto' ? 'recommended' : `${voltage} V`} voltage.`}
+        />
+      ) : null}
+      {isOffGrid ? (
+        <ComponentSlot
+          kind="controller"
+          label="Charge controller"
+          selectedId={selectedControllerId}
+          onSelect={setSelectedControllerId}
+          helperText="MPPT recommended above 200 W array."
+        />
+      ) : null}
+    </View>
+  );
+
+  const step5 = (
+    <ResultsView result={result} error={resultError} onAutoSuggest={autoSuggest} busy={busy} />
+  );
+
   return (
     <View style={styles.container}>
-      <StepHeader
-        step={step}
-        total={WIZARD_STEPS}
-        title={STEP_TITLES[step]}
-        subtitle={STEP_SUBTITLES[step]}
-      />
+      {!expert ? (
+        <StepHeader
+          step={step}
+          total={WIZARD_STEPS}
+          title={STEP_TITLES[step]}
+          subtitle={STEP_SUBTITLES[step]}
+        />
+      ) : null}
       <ScrollView
         style={styles.scroll}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
-        {step === 1 ? (
+        {expert ? (
           <View style={styles.gap}>
             {mode === 'create' ? (
-              <>
-                <Card mode="outlined">
-                  <Card.Content style={styles.gap}>
-                    <TextInput
-                      mode="outlined"
-                      label="Project name *"
-                      value={projectName}
-                      onChangeText={setProjectName}
-                      dense
-                    />
-                    <TextInput
-                      mode="outlined"
-                      label="Client name"
-                      value={clientName}
-                      onChangeText={setClientName}
-                      dense
-                    />
-                  </Card.Content>
-                </Card>
-                <SectionTitle title="Load audit" icon="format-list-bulleted" />
-                <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
-              </>
-            ) : (
-              <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
-            )}
-          </View>
-        ) : null}
-
-        {step === 2 ? (
-          <View style={styles.gap}>
-            <PshPicker
-              locations={reference.psh}
-              selectedId={pshLocationId}
-              onSelect={(location) => {
-                setPshLocationId(location.id);
-                setWinterPsh(location.winterPsh);
-                setSummerPsh(location.summerPsh);
-              }}
-              onClear={() => {
-                setPshLocationId(null);
-              }}
-            />
-            <Button
-              icon="map-marker-plus-outline"
-              mode="outlined"
-              onPress={() => setManualPshOpen(true)}
-              style={styles.suggestButton}
-            >
-              Add manual location
-            </Button>
-            <SectionTitle title="Peak sun hours (manual override)" icon="weather-sunny" />
-            <View style={styles.row}>
-              <NumberField
-                label="Winter PSH"
-                value={winterPsh}
-                onChange={setWinterPsh}
-                unit="h/day"
-              />
-              <NumberField
-                label="Summer PSH"
-                value={summerPsh}
-                onChange={setSummerPsh}
-                unit="h/day"
-              />
-            </View>
-            <NumberField
-              label="Min. ambient temperature"
-              value={minTemperatureC}
-              onChange={setMinTemperatureC}
-              unit="°C"
-              helperText="Used for worst-cold Voc derating (NEC 690.7)."
-            />
-          </View>
-        ) : null}
-
-        {step === 3 ? (
-          <View style={styles.gap}>
-            <SegmentedField
-              label="System type"
-              value={systemType}
-              onChange={(v) => setSystemType(v as SystemType)}
-              options={[
-                { value: 'on-grid', label: 'On-grid' },
-                { value: 'hybrid', label: 'Hybrid' },
-                { value: 'off-grid', label: 'Off-grid' },
-              ]}
-            />
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {SYSTEM_TYPE_HELP[systemType]}
-            </Text>
-            {!isOnGrid ? (
-              <>
-                <StepperField
-                  label="Days of autonomy"
-                  value={autonomyDays}
-                  onChange={setAutonomyDays}
-                  min={1}
-                  max={10}
-                />
-                <SegmentedField
-                  label="Battery chemistry"
-                  value={chemistry}
-                  onChange={(v) => setChemistry(v as BatteryChemistry)}
-                  options={[
-                    { value: 'lifepo4', label: 'LiFePO4' },
-                    { value: 'agm-gel', label: 'AGM/Gel' },
-                    { value: 'flooded', label: 'Flooded' },
-                  ]}
-                />
-              </>
+              <SectionTitle title="1 · Project & loads" icon="folder-outline" />
             ) : null}
-            <SegmentedField
-              label="System voltage"
-              value={voltage}
-              onChange={(v) => setVoltage(v as VoltageChoice)}
-              options={[
-                { value: 'auto', label: 'Auto' },
-                { value: '12', label: '12 V' },
-                { value: '24', label: '24 V' },
-                { value: '48', label: '48 V' },
-              ]}
-            />
+            {step1}
+            <SectionTitle title="2 · Location & solar" icon="weather-sunny" />
+            {step2}
+            <SectionTitle title="3 · System type" icon="power-plug-outline" />
+            {step3}
+            <SectionTitle title="4 · Components" icon="wrench-outline" />
+            {step4}
+            <SectionTitle title="5 · Results" icon="chart-box-outline" />
+            {step5}
           </View>
-        ) : null}
-
-        {step === 4 ? (
-          <View style={styles.gap}>
-            <Button
-              mode="contained-tonal"
-              icon="auto-fix"
-              onPress={autoSuggest}
-              loading={busy}
-              style={styles.suggestButton}
-            >
-              Auto-suggest components
-            </Button>
-            <ComponentSlot
-              kind="panel"
-              label="PV panel"
-              selectedId={selectedPanelId}
-              onSelect={setSelectedPanelId}
-              helperText="Minimizes panel count within the MPPT string limits."
-            />
-            <ComponentSlot
-              kind="inverter"
-              label="Inverter"
-              selectedId={selectedInverterId}
-              onSelect={setSelectedInverterId}
-              helperText={
-                isOnGrid ? 'Grid-tied string inverter.' : 'Must match the battery bank voltage.'
-              }
-            />
-            {!isOnGrid ? (
-              <ComponentSlot
-                kind="battery"
-                label="Battery"
-                selectedId={selectedBatteryId}
-                onSelect={setSelectedBatteryId}
-                helperText={`Matched to ${chemistry} chemistry and ${voltage === 'auto' ? 'recommended' : `${voltage} V`} voltage.`}
-              />
-            ) : null}
-            {isOffGrid ? (
-              <ComponentSlot
-                kind="controller"
-                label="Charge controller"
-                selectedId={selectedControllerId}
-                onSelect={setSelectedControllerId}
-                helperText="MPPT recommended above 200 W array."
-              />
-            ) : null}
-          </View>
-        ) : null}
-
-        {step === 5 ? (
-          <ResultsView
-            result={result}
-            error={resultError}
-            onAutoSuggest={autoSuggest}
-            busy={busy}
-          />
-        ) : null}
+        ) : (
+          <>
+            {step === 1 ? step1 : null}
+            {step === 2 ? step2 : null}
+            {step === 3 ? step3 : null}
+            {step === 4 ? step4 : null}
+            {step === 5 ? step5 : null}
+          </>
+        )}
       </ScrollView>
 
-      <StepNav
-        onBack={step > 1 ? () => setStep((s) => s - 1) : undefined}
-        onNext={goNext}
-        nextLabel={step === WIZARD_STEPS ? (saving ? 'Saving…' : 'Save & finish') : 'Next'}
-        nextDisabled={step === 1 ? !step1Valid : step === 5 ? !result : false}
-        busy={saving}
-      />
+      {!expert ? (
+        <StepNav
+          onBack={step > 1 ? () => setStep((s) => s - 1) : undefined}
+          onNext={goNext}
+          nextLabel={step === WIZARD_STEPS ? (saving ? 'Saving…' : 'Save & finish') : 'Next'}
+          nextDisabled={step === 1 ? !step1Valid : step === 5 ? !result : false}
+          busy={saving}
+        />
+      ) : (
+        <Button
+          mode="contained"
+          icon="content-save-outline"
+          onPress={save}
+          loading={saving}
+          disabled={mode === 'create' ? !step1Valid : false}
+          style={styles.expertSave}
+        >
+          Save & finish
+        </Button>
+      )}
 
       <ManualPshDialog
         visible={manualPshOpen}
@@ -504,6 +557,8 @@ function ResultsView(props: {
 }) {
   const { result, error, onAutoSuggest, busy } = props;
   const theme = useTheme();
+  const f = useUnitFormatters();
+  const powerUnit = useSettingsStore((s) => s.units.power);
 
   if (error) {
     return (
@@ -515,50 +570,47 @@ function ResultsView(props: {
   if (!result) return null;
 
   const { dailyLoad, pv, battery, inverter, controller, cables, protection } = result;
+  const useKw = powerUnit === 'kw';
 
   return (
     <View style={styles.gap}>
       <View style={styles.statRow}>
         <StatCard
           label="Daily energy"
-          value={fmt(dailyLoad.totalWhPerDay)}
-          unit="Wh/day"
+          value={f.number(
+            useKw ? dailyLoad.totalWhPerDay / 1000 : dailyLoad.totalWhPerDay,
+            useKw ? 2 : 0,
+          )}
+          unit={useKw ? 'kWh/day' : 'Wh/day'}
           icon="lightning-bolt"
         />
-        <StatCard
-          label="Peak load"
-          value={fmt(dailyLoad.peakSimultaneousWatts)}
-          unit="W"
-          icon="gauge"
-        />
+        <StatCard label="Peak load" value={f.power(dailyLoad.peakSimultaneousWatts)} icon="gauge" />
       </View>
       <View style={styles.statRow}>
         <StatCard
           label="PV array"
-          value={fmt(pv.actualArrayWatts)}
-          unit="W"
+          value={f.power(pv.actualArrayWatts)}
           hint={`${pv.seriesCount}S × ${pv.parallelCount}P panels`}
           icon="solar-panel"
         />
         <StatCard
           label="Battery bank"
-          value={fmt(battery.actualCapacityAh)}
+          value={f.number(battery.actualCapacityAh, 0)}
           unit="Ah"
-          hint={`${battery.batteryCount} cells · ${fmt(battery.actualCapacityKwh)} kWh`}
+          hint={`${battery.batteryCount} cells · ${f.number(useKw ? battery.actualCapacityKwh : battery.actualCapacityKwh * 1000, useKw ? 2 : 0)} ${useKw ? 'kWh' : 'Wh'}`}
           icon="battery"
         />
       </View>
       <View style={styles.statRow}>
         <StatCard
           label="Inverter"
-          value={fmt(inverter.recommendedContinuousWatts)}
-          unit="W"
-          hint={`Surge ${fmt(inverter.recommendedSurgeWatts)} W`}
+          value={f.power(inverter.recommendedContinuousWatts)}
+          hint={`Surge ${f.power(inverter.recommendedSurgeWatts)}`}
           icon="transmission-tower"
         />
         <StatCard
           label="Controller"
-          value={controller.minCurrentA > 0 ? fmt(controller.minCurrentA) : '—'}
+          value={controller.minCurrentA > 0 ? f.number(controller.minCurrentA, 1) : '—'}
           unit={controller.minCurrentA > 0 ? 'A' : undefined}
           hint={controller.recommendedType}
           icon="cog"
@@ -574,20 +626,20 @@ function ResultsView(props: {
           <KeyValueRow label="System voltage" value={`${battery.systemVoltageV} V`} />
           <KeyValueRow
             label="Array Voc (cold)"
-            value={`${fmt(result.compliance.arrayVocColdV)} V`}
+            value={`${f.number(result.compliance.arrayVocColdV, 1)} V`}
             strong
           />
           <KeyValueRow
             label="PV source cable"
-            value={`${cables.pvSource.crossSectionMm2} mm² · ${fmt(cables.pvSource.voltageDropPercent)}% drop`}
+            value={`${f.cableSize(cables.pvSource.crossSectionMm2)} · ${f.number(cables.pvSource.voltageDropPercent, 2)}% drop`}
           />
           <KeyValueRow
             label="DC output cable"
-            value={`${cables.dcOutput.crossSectionMm2} mm² · ${fmt(cables.dcOutput.voltageDropPercent)}% drop`}
+            value={`${f.cableSize(cables.dcOutput.crossSectionMm2)} · ${f.number(cables.dcOutput.voltageDropPercent, 2)}% drop`}
           />
           <KeyValueRow
             label="AC output cable"
-            value={`${cables.acOutput.crossSectionMm2} mm² · ${fmt(cables.acOutput.voltageDropPercent)}% drop`}
+            value={`${f.cableSize(cables.acOutput.crossSectionMm2)} · ${f.number(cables.acOutput.voltageDropPercent, 2)}% drop`}
           />
           <KeyValueRow label="PV source OCPD" value={`${protection.pvSourceOcpdStandardA} A`} />
           <KeyValueRow label="AC breaker" value={`${protection.acBreakerStandardA} A`} />
@@ -612,12 +664,6 @@ function ResultsView(props: {
       </Button>
     </View>
   );
-}
-
-function fmt(n: number): string {
-  if (!Number.isFinite(n)) return '—';
-  const rounded = Math.round(n * 10) / 10;
-  return String(rounded);
 }
 
 const styles = StyleSheet.create({
@@ -646,5 +692,8 @@ const styles = StyleSheet.create({
   suggestButton: {
     alignSelf: 'flex-start',
     marginVertical: 4,
+  },
+  expertSave: {
+    marginTop: 8,
   },
 });

@@ -30,6 +30,8 @@ import { useProjectStore } from '@/store/projects';
 
 import { SldView } from '../../components/SldView';
 import { StatCard, WarningsList } from '../../components/results';
+import { useUnitFormatters } from '../../hooks/useUnitFormatters';
+import { useSettingsStore } from '../../store/settings';
 
 function slugify(text: string): string {
   return (
@@ -55,6 +57,8 @@ export default function ReportsScreen() {
   const [message, setMessage] = useState('');
   const [importError, setImportError] = useState('');
   const [importDialog, setImportDialog] = useState(false);
+  const f = useUnitFormatters();
+  const units = useSettingsStore((s) => s.units);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +97,8 @@ export default function ReportsScreen() {
         clientName: project.clientName,
         scenario,
         result,
-        bom: buildBom(result),
+        bom: buildBom(result, units),
+        units,
       });
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
@@ -117,7 +122,7 @@ export default function ReportsScreen() {
     try {
       const file = new File(Paths.cache, `${slugify(project.name)}-bom.csv`);
       file.create({ overwrite: true, intermediates: true });
-      file.write(bomToCsv(buildBom(result)));
+      file.write(bomToCsv(buildBom(result, units)));
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
           mimeType: 'text/csv',
@@ -261,30 +266,19 @@ export default function ReportsScreen() {
             ) : (
               <>
                 <View style={styles.statsRow}>
-                  <StatCard
-                    label="Daily load"
-                    value={String(Math.round(result.dailyLoad.totalWhPerDay))}
-                    unit="Wh"
-                  />
-                  <StatCard
-                    label="PV array"
-                    value={String(Math.round(result.pv.actualArrayWatts))}
-                    unit="W"
-                  />
+                  <StatCard label="Daily load" value={f.power(result.dailyLoad.totalWhPerDay)} />
+                  <StatCard label="PV array" value={f.power(result.pv.actualArrayWatts)} />
                   <StatCard
                     label="Battery"
-                    value={String(Math.round(result.battery.actualCapacityAh))}
+                    value={f.number(result.battery.actualCapacityAh, 0)}
                     unit="Ah"
                   />
                   <StatCard
                     label="Inverter"
-                    value={String(
-                      Math.round(
-                        result.inverter.selectedContinuousWatts ??
-                          result.inverter.recommendedContinuousWatts,
-                      ),
+                    value={f.power(
+                      result.inverter.selectedContinuousWatts ??
+                        result.inverter.recommendedContinuousWatts,
                     )}
-                    unit="W"
                   />
                 </View>
 

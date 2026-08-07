@@ -1,5 +1,7 @@
 import type { DesignResult } from '../core/types';
 import type { ScenarioRecord } from '../db/repos/projects';
+import type { UnitSettings } from '../store/settings';
+import { createFormatters } from '../utils/format';
 import type { BomItem } from './bom';
 import { buildSldDiagram } from './sld';
 
@@ -9,11 +11,7 @@ export interface PdfReportData {
   scenario: ScenarioRecord;
   result: DesignResult;
   bom: BomItem[];
-}
-
-function fmt(n: number): string {
-  if (!Number.isFinite(n)) return '—';
-  return String(Math.round(n * 10) / 10);
+  units?: UnitSettings;
 }
 
 function esc(value: string | number): string {
@@ -28,13 +26,21 @@ function sldHtml(result: DesignResult): string {
 
   const blocks: string[] = [];
   blocks.push('<td class="sld source">PV array</td>');
-  blocks.push(`<td class="sld protect">OCPD ${protection.pvSourceOcpdStandardA} A</td>`);
+  blocks.push(`<td class="sld protect">PV OCPD ${protection.pvSourceOcpdStandardA} A</td>`);
+  blocks.push(
+    `<td class="sld protect">DC isolator ${protection.dcIsolatorRequired ? '' : '(opt)'}</td>`,
+  );
   if (isOffGrid) blocks.push('<td class="sld convert">Charge controller</td>');
+  blocks.push(`<td class="sld protect">SPD ${protection.spdType}</td>`);
   blocks.push('<td class="sld convert">Inverter</td>');
   blocks.push(`<td class="sld protect">AC brkr ${protection.acBreakerStandardA} A</td>`);
+  if (protection.acIsolatorRequired) blocks.push('<td class="sld protect">AC isolator</td>');
   blocks.push('<td class="sld load">Main panel / loads</td>');
   if (!isOnGrid) blocks.push('<td class="sld battery">Battery bank ⇄ Inverter</td>');
-  else blocks.push('<td class="sld grid">Grid</td>');
+  else {
+    if (protection.atsRequired) blocks.push('<td class="sld protect">ATS</td>');
+    blocks.push('<td class="sld grid">Grid</td>');
+  }
 
   return `
     <table class="sld-table"><tr>
@@ -44,8 +50,9 @@ function sldHtml(result: DesignResult): string {
 
 /** Build the print-ready HTML document for a design summary PDF. */
 export function buildPdfHtml(data: PdfReportData): string {
-  const { projectName, clientName, scenario, result, bom } = data;
+  const { projectName, clientName, scenario, result, bom, units } = data;
   const { dailyLoad, pv, battery, inverter, controller, cables, protection } = result;
+  const f = createFormatters(units ?? { power: 'w', length: 'm', cable: 'mm2', temp: 'c' });
   const systemVoltage = battery.systemVoltageV;
 
   const loadRows = scenario.loads
@@ -92,6 +99,10 @@ export function buildPdfHtml(data: PdfReportData): string {
 <meta charset="utf-8" />
 <style>
   body { font-family: Roboto, Arial, sans-serif; color: #131c20; margin: 24px; font-size: 12px; }
+  .brand { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #f5a623; padding-bottom: 10px; margin-bottom: 14px; }
+  .logo { width: 40px; height: 40px; border-radius: 8px; background: #0b4f6c; color: #fff; font-weight: 800; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+  .brand-name { font-size: 18px; font-weight: 800; color: #0b4f6c; }
+  .brand-tag { font-size: 10px; color: #555; }
   h1 { font-size: 20px; margin: 0 0 2px; color: #0b4f6c; }
   h2 { font-size: 14px; margin: 20px 0 8px; color: #0b4f6c; border-bottom: 2px solid #f5a623; padding-bottom: 4px; }
   .meta { color: #555; font-size: 11px; margin-bottom: 16px; }
@@ -121,7 +132,14 @@ export function buildPdfHtml(data: PdfReportData): string {
 </style>
 </head>
 <body>
-  <h1>SlorCalcPro — Solar System Design Summary</h1>
+  <div class="brand">
+    <div class="logo">S</div>
+    <div>
+      <div class="brand-name">SlorCalcPro</div>
+      <div class="brand-tag">Offline solar system design &amp; engineering report</div>
+    </div>
+  </div>
+  <h1>Solar System Design Summary</h1>
   <div class="meta">
     Project: <b>${esc(projectName)}</b>${clientName ? ` &nbsp;·&nbsp; Client: <b>${esc(clientName)}</b>` : ''}<br />
     Scenario: <b>${esc(scenario.name)}</b> &nbsp;·&nbsp; ${scenario.systemType} · ${systemVoltage} V ·
@@ -130,11 +148,11 @@ export function buildPdfHtml(data: PdfReportData): string {
 
   <h2>1. System overview</h2>
   <div class="grid">
-    <div class="stat"><div class="lbl">Daily energy demand</div><div class="val">${fmt(dailyLoad.totalWhPerDay)} Wh/day</div></div>
-    <div class="stat"><div class="lbl">Peak simultaneous load</div><div class="val">${fmt(dailyLoad.peakSimultaneousWatts)} W</div></div>
-    <div class="stat"><div class="lbl">PV array</div><div class="val">${fmt(pv.actualArrayWatts)} W</div><div class="lbl">${pv.seriesCount}S × ${pv.parallelCount}P</div></div>
-    <div class="stat"><div class="lbl">Battery bank</div><div class="val">${fmt(battery.actualCapacityAh)} Ah</div><div class="lbl">${battery.batteryCount} cells @ ${systemVoltage} V</div></div>
-    <div class="stat"><div class="lbl">Inverter</div><div class="val">${fmt(inverter.selectedContinuousWatts ?? inverter.recommendedContinuousWatts)} W</div><div class="lbl">surge ${fmt(inverter.recommendedSurgeWatts)} W</div></div>
+    <div class="stat"><div class="lbl">Daily energy demand</div><div class="val">${f.power(dailyLoad.totalWhPerDay)}/day</div></div>
+    <div class="stat"><div class="lbl">Peak simultaneous load</div><div class="val">${f.power(dailyLoad.peakSimultaneousWatts)}</div></div>
+    <div class="stat"><div class="lbl">PV array</div><div class="val">${f.power(pv.actualArrayWatts)}</div><div class="lbl">${pv.seriesCount}S × ${pv.parallelCount}P</div></div>
+    <div class="stat"><div class="lbl">Battery bank</div><div class="val">${f.number(battery.actualCapacityAh, 0)} Ah</div><div class="lbl">${battery.batteryCount} cells @ ${systemVoltage} V</div></div>
+    <div class="stat"><div class="lbl">Inverter</div><div class="val">${f.power(inverter.selectedContinuousWatts ?? inverter.recommendedContinuousWatts)}</div><div class="lbl">surge ${f.power(inverter.recommendedSurgeWatts)}</div></div>
     <div class="stat"><div class="lbl">Charge controller</div><div class="val">${controller.selectedCurrentA ?? controller.minCurrentA} A</div><div class="lbl">${controller.recommendedType}</div></div>
   </div>
 
@@ -145,17 +163,17 @@ export function buildPdfHtml(data: PdfReportData): string {
   <table>
     <tr><th>Appliance</th><th>Qty</th><th>W</th><th>h/day</th><th>AC/DC</th><th>Wh/day</th></tr>
     ${loadRows}
-    <tr><th colspan="5">Total</th><th>${fmt(dailyLoad.totalWhPerDay)}</th></tr>
+    <tr><th colspan="5">Total</th><th>${f.number(dailyLoad.totalWhPerDay, 0)}</th></tr>
   </table>
 
   <h2>4. Electrical summary</h2>
   <table>
     <tr><th>Item</th><th>Value</th></tr>
     <tr><td>System voltage</td><td>${systemVoltage} V</td></tr>
-    <tr><td>PV source current</td><td>${fmt(cables.pvSource.currentA)} A</td></tr>
-    <tr><td>PV source cable</td><td>${cables.pvSource.crossSectionMm2} mm² · ${fmt(cables.pvSource.voltageDropPercent)}% drop</td></tr>
-    <tr><td>DC output cable</td><td>${cables.dcOutput.crossSectionMm2} mm² · ${fmt(cables.dcOutput.voltageDropPercent)}% drop</td></tr>
-    <tr><td>AC output cable</td><td>${cables.acOutput.crossSectionMm2} mm² · ${fmt(cables.acOutput.voltageDropPercent)}% drop</td></tr>
+    <tr><td>PV source current</td><td>${f.number(cables.pvSource.currentA, 1)} A</td></tr>
+    <tr><td>PV source cable</td><td>${f.cableSize(cables.pvSource.crossSectionMm2)} · ${f.number(cables.pvSource.voltageDropPercent, 2)}% drop</td></tr>
+    <tr><td>DC output cable</td><td>${f.cableSize(cables.dcOutput.crossSectionMm2)} · ${f.number(cables.dcOutput.voltageDropPercent, 2)}% drop</td></tr>
+    <tr><td>AC output cable</td><td>${f.cableSize(cables.acOutput.crossSectionMm2)} · ${f.number(cables.acOutput.voltageDropPercent, 2)}% drop</td></tr>
     <tr><td>PV source OCPD</td><td>${protection.pvSourceOcpdStandardA} A</td></tr>
     <tr><td>AC breaker</td><td>${protection.acBreakerStandardA} A</td></tr>
     <tr><td>Backfeed rule (120%)</td><td>${protection.backfeedPasses ? 'PASS' : 'FAIL'}</td></tr>

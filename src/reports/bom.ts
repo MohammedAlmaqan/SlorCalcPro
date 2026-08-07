@@ -5,6 +5,8 @@ import {
   referenceInverterFor,
 } from '../core/data/referenceComponents';
 import type { DesignResult } from '../core/types';
+import type { UnitSettings } from '../store/settings';
+import { formatCableSize } from '../utils/format';
 
 export interface BomItem {
   category: string;
@@ -22,9 +24,10 @@ export interface BomCategory {
 const DEFAULT_CABLE_LENGTHS = { pv: 10, dc: 2, ac: 10 } as const;
 
 /** Build a professional bill of materials from a completed design. Pure TS. */
-export function buildBom(result: DesignResult): BomItem[] {
+export function buildBom(result: DesignResult, units?: UnitSettings): BomItem[] {
   const { input, pv, battery, cables, protection } = result;
   const items: BomItem[] = [];
+  const cableSize = (mm2: number) => formatCableSize(mm2, units?.cable ?? 'mm2');
   const panel = input.selected?.panel ?? REFERENCE_PANEL;
   const batterySpec = input.selected?.battery ?? REFERENCE_BATTERY;
   const controllerSpec = input.selected?.controller ?? REFERENCE_CONTROLLER;
@@ -95,21 +98,21 @@ export function buildBom(result: DesignResult): BomItem[] {
   items.push(
     {
       category: 'Cables',
-      part: `PV source cable ${cables.pvSource.crossSectionMm2} mm²`,
+      part: `PV source cable ${cableSize(cables.pvSource.crossSectionMm2)}`,
       spec: `Rated ${cables.pvSource.currentA} A · drop ${cables.pvSource.voltageDropPercent}%`,
       qty: pvRunM,
       unit: 'm (run)',
     },
     {
       category: 'Cables',
-      part: `DC output cable ${cables.dcOutput.crossSectionMm2} mm²`,
+      part: `DC output cable ${cableSize(cables.dcOutput.crossSectionMm2)}`,
       spec: `Rated ${cables.dcOutput.currentA} A · drop ${cables.dcOutput.voltageDropPercent}%`,
       qty: dcRunM,
       unit: 'm (run)',
     },
     {
       category: 'Cables',
-      part: `AC output cable ${cables.acOutput.crossSectionMm2} mm²`,
+      part: `AC output cable ${cableSize(cables.acOutput.crossSectionMm2)}`,
       spec: `Rated ${cables.acOutput.currentA} A · drop ${cables.acOutput.voltageDropPercent}%`,
       qty: acRunM,
       unit: 'm (run)',
