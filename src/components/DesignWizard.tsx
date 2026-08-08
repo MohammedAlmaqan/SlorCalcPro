@@ -197,6 +197,7 @@ export function DesignWizard(props: {
         mpptMinVoltageV: limits.min,
         mpptMaxVoltageV: limits.max,
         maxInputVoltageV: limits.maxV,
+        minTemperatureC: minTemperatureC ?? -10,
       };
       const suggestion = suggestComponents(
         req,

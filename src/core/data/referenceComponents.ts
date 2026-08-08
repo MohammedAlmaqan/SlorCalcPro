@@ -17,7 +17,7 @@ export const REFERENCE_PANEL: PanelSpec = {
   impA: 13.2,
   tempCoeffPmax: -0.35,
   tempCoeffVoc: -0.29,
-  maxSeriesFuseRating: 20,
+  maxSeriesFuseRating: 25,
   maxSystemVoltage: 1000,
   dimensionsMm: { width: 1134, height: 2279, depth: 30 },
   weightKg: 28.5,

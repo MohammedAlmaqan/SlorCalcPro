@@ -58,8 +58,11 @@ describe('sizeCables', () => {
 
   it('sizes the PV source circuit to NEC 690.8 (Isc × 1.56)', () => {
     expect(result.pvSource.currentA).toBeCloseTo(21.84, 2);
-    expect(result.pvSource.crossSectionMm2).toBe(4);
-    expect(result.pvSource.voltageDropPercent).toBeCloseTo(1.61, 1);
+    // Ampacity-constrained (design ampacity = Isc×1.56×1.25/0.6 ≈ 45.5 A) so the
+    // conductor steps up from the 4 mm² voltage-drop size to 10 mm² (55 A).
+    expect(result.pvSource.crossSectionMm2).toBe(10);
+    expect(result.pvSource.ampacityPasses).toBe(true);
+    expect(result.pvSource.voltageDropPercent).toBeCloseTo(0.64, 2);
   });
 
   it('sizes the DC output run for battery↔inverter current', () => {

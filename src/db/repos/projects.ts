@@ -274,11 +274,15 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
     };
   };
 
-  const insertLoads = async (scenarioId: string, loads: LoadItem[]): Promise<void> => {
-    await db.runAsync('DELETE FROM scenario_loads WHERE scenario_id = ?', [scenarioId]);
+  const insertLoads = async (
+    exec: DatabaseLike,
+    scenarioId: string,
+    loads: LoadItem[],
+  ): Promise<void> => {
+    await exec.runAsync('DELETE FROM scenario_loads WHERE scenario_id = ?', [scenarioId]);
     for (let i = 0; i < loads.length; i += 1) {
       const load = loads[i];
-      await db.runAsync(
+      await exec.runAsync(
         `INSERT INTO scenario_loads
           (id, scenario_id, position, name, quantity, power_watts, hours_per_day,
            is_ac, is_simultaneous, is_inductive, surge_factor)
@@ -360,7 +364,7 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
             input.scenario?.systemType ?? 'off-grid',
           ],
         );
-        await insertLoads(scenarioId, input.scenario?.loads ?? []);
+        await insertLoads(txn, scenarioId, input.scenario?.loads ?? []);
       });
       const project = await (await projectRepo(db)).getProject(projectId);
       if (!project) throw new Error('Failed to create project');
@@ -428,7 +432,7 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
               scenario.selectedControllerId,
             ],
           );
-          await insertLoads(scenarioId, scenario.loads);
+          await insertLoads(txn, scenarioId, scenario.loads);
         }
       });
       const project = await (await projectRepo(db)).getProject(projectId);
@@ -487,7 +491,7 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
               scenario.designResult ? JSON.stringify(scenario.designResult) : null,
             ],
           );
-          await insertLoads(scenarioId, scenario.loads);
+          await insertLoads(txn, scenarioId, scenario.loads);
         }
       });
       const imported = await (await projectRepo(db)).getProject(projectId);
@@ -536,7 +540,7 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
             patch.selectedControllerId ?? null,
           ],
         );
-        if (patch.loads) await insertLoads(scenarioId, patch.loads);
+        if (patch.loads) await insertLoads(txn, scenarioId, patch.loads);
       });
       return loadScenario(await buildScenarioRow(scenarioId));
     },
@@ -553,7 +557,7 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
         await db.runAsync("UPDATE scenarios SET updated_at = datetime('now') WHERE id = ?", [
           scenarioId,
         ]);
-        await insertLoads(scenarioId, patch.loads);
+        await insertLoads(db, scenarioId, patch.loads);
       }
     },
     setActiveScenario: async (projectId, scenarioId) => {

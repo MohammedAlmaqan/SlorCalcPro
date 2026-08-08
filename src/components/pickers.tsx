@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   Card,
@@ -128,13 +128,14 @@ export function ComponentSlot(props: {
             onChangeText={setQuery}
             style={styles.search}
           />
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
+          <ScrollView
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
             style={styles.list}
-            renderItem={({ item }) => (
+          >
+            {filtered.map((item) => (
               <List.Item
+                key={item.id}
                 title={`${item.brand} ${item.model}`}
                 description={specSummary(kind, item.spec)}
                 onPress={() => choose(item.id)}
@@ -145,8 +146,8 @@ export function ComponentSlot(props: {
                   />
                 )}
               />
-            )}
-          />
+            ))}
+          </ScrollView>
         </Card.Content>
       ) : null}
     </Card>
@@ -205,13 +206,14 @@ export function PshPicker(props: {
             onChangeText={setQuery}
             style={styles.search}
           />
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
+          <ScrollView
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
             style={styles.list}
-            renderItem={({ item }) => (
+          >
+            {filtered.map((item) => (
               <List.Item
+                key={item.id}
                 title={`${item.city}, ${item.country}`}
                 description={`Winter ${item.winterPsh} h · Summer ${item.summerPsh} h`}
                 onPress={() => {
@@ -220,8 +222,8 @@ export function PshPicker(props: {
                 }}
                 left={() => <List.Icon icon="map-marker-outline" color={theme.colors.primary} />}
               />
-            )}
-          />
+            ))}
+          </ScrollView>
         </Card.Content>
       ) : null}
     </Card>

@@ -1,3 +1,4 @@
+import { PV_CURRENT_MULTIPLIER, STANDARD_OCPD_SIZES } from '../core/formulas/protection';
 import type { ComponentRecord } from '../data/types';
 import type {
   BatteryChemistry,
@@ -24,6 +25,8 @@ export interface SuggestRequirements {
   mpptMinVoltageV: number;
   mpptMaxVoltageV: number;
   maxInputVoltageV: number;
+  /** Design ambient low temperature (°C) used for cold-Voc derating (default -10). */
+  minTemperatureC?: number;
 }
 
 export interface Suggestion {
@@ -33,11 +36,11 @@ export interface Suggestion {
   controllerId: string | null;
 }
 
-interface PanelFit {
-  record: ComponentRecord<PanelSpec>;
-  totalCount: number;
-  overshootWatts: number;
-} /**
+/** Next standard OCPD size >= `minimumA`, or null if beyond the standard range. */
+function nextStandardOcpd(minimumA: number): number | null {
+  return STANDARD_OCPD_SIZES.find((size) => size >= minimumA) ?? null;
+}
+/**
  * Pick the best-fitting component for each slot from in-memory catalog lists.
  * Pure function — no I/O, no React imports (unit-testable).
  *
@@ -79,39 +82,51 @@ function bestPanel(
 ): { record: ComponentRecord<PanelSpec>; totalCount: number; overshootWatts: number } | null {
   if (candidates.length === 0) return null;
 
-  let best: {
+  interface PanelCandidate {
     record: ComponentRecord<PanelSpec>;
     totalCount: number;
     overshootWatts: number;
-  } | null = null;
+    fusePasses: boolean;
+  }
+
+  const better = (a: PanelCandidate, b: PanelCandidate): boolean =>
+    a.totalCount < b.totalCount ||
+    (a.totalCount === b.totalCount && a.overshootWatts < b.overshootWatts);
+
+  let bestPassing: PanelCandidate | null = null;
+  let bestAny: PanelCandidate | null = null;
 
   for (const record of candidates) {
     const panel = record.spec;
+    // NEC 690.7: Voc must be derated for the design low temperature
+    // (module Voc temp coefficient is negative, so cold raises Voc).
+    const tempDelta = (r.minTemperatureC ?? -10) - 25;
+    const coldVoc = panel.vocV * (1 + (panel.tempCoeffVoc / 100) * tempDelta);
     const minSeries = Math.max(1, Math.ceil(r.mpptMinVoltageV / Math.max(1, panel.vmpV)));
     const maxSeries = Math.min(
-      Math.floor(r.maxInputVoltageV / Math.max(1, panel.vocV)),
+      Math.floor(r.maxInputVoltageV / Math.max(1, coldVoc)),
       Math.floor(r.mpptMaxVoltageV / Math.max(1, panel.vmpV)),
     );
     if (minSeries > maxSeries) continue;
-    const series = minSeries;
-    const parallel = Math.max(1, Math.ceil(r.requiredArrayWatts / (series * panel.pmaxW)));
-    const totalCount = series * parallel;
-    const actualWatts = totalCount * panel.pmaxW;
-    const overshootWatts = Math.max(0, actualWatts - r.requiredArrayWatts);
 
-    const candidate = { record, totalCount, overshootWatts };
-    if (!best) {
-      best = candidate;
-      continue;
-    }
-    if (
-      candidate.totalCount < best.totalCount ||
-      (candidate.totalCount === best.totalCount && candidate.overshootWatts < best.overshootWatts)
-    ) {
-      best = candidate;
+    for (let series = minSeries; series <= maxSeries; series += 1) {
+      const parallel = Math.max(1, Math.ceil(r.requiredArrayWatts / (series * panel.pmaxW)));
+      const totalCount = series * parallel;
+      const actualWatts = totalCount * panel.pmaxW;
+      const overshootWatts = Math.max(0, actualWatts - r.requiredArrayWatts);
+
+      // NEC 690.9: the PV source OCPD (Isc × 1.56, next standard size) must not
+      // exceed the panel maximum series fuse rating.
+      const ocpd = nextStandardOcpd(parallel * panel.iscA * PV_CURRENT_MULTIPLIER);
+      const fusePasses = ocpd !== null && ocpd <= panel.maxSeriesFuseRating;
+
+      const candidate: PanelCandidate = { record, totalCount, overshootWatts, fusePasses };
+      if (!bestAny || better(candidate, bestAny)) bestAny = candidate;
+      if (fusePasses && (!bestPassing || better(candidate, bestPassing))) bestPassing = candidate;
     }
   }
-  return best;
+
+  return bestPassing ?? bestAny;
 }
 
 function bestInverter(
@@ -130,7 +145,7 @@ function bestInverter(
 
   const scored = compatible
     .map((record) => {
-      const { continuousPowerW, surgePowerW } = record.spec;
+      const { continuousPowerW } = record.spec;
       const shortfall = Math.max(0, r.recommendedContinuousWatts - continuousPowerW);
       const score =
         voltageMatchPenalty(record.spec) +

@@ -92,10 +92,10 @@ describe('designSystem — end-to-end hybrid design', () => {
     expect(result.compliance.arrayVocWithinInverterLimit).toBe(true);
   });
 
-  it('flags the PV source cable ampacity issue', () => {
+  it('sizes the PV source cable to meet ampacity', () => {
     const codes = result.warnings.map((w) => w.code);
-    expect(codes).toContain('CABLE-AMPACITY-PV');
-    expect(result.cables.pvSource.ampacityPasses).toBe(false);
+    expect(codes).not.toContain('CABLE-AMPACITY-PV');
+    expect(result.cables.pvSource.ampacityPasses).toBe(true);
   });
 });
 

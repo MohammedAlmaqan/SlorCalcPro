@@ -26,7 +26,18 @@ function sizeCircuit(params: CircuitParams, audit: AuditTrail): CableSelection {
     allowedDropV,
   });
 
-  const cable = selectCable(requiredArea);
+  // Ampacity must cover the design current with a 1.25 margin, derated for
+  // rooftop ambient temperature (study §4.6). The conductor must satisfy BOTH
+  // the voltage-drop area and the ampacity requirement, so step up to the next
+  // larger standard size when the area-based selection is ampacity-limited.
+  const designAmpacity = (params.currentA * 1.25) / params.tempDeratingFactor;
+  const byArea = selectCable(requiredArea);
+  const cable =
+    byArea.ampacityA >= designAmpacity
+      ? byArea
+      : (CABLE_TABLE.find(
+          (c) => c.crossSectionMm2 >= requiredArea && c.ampacityA >= designAmpacity,
+        ) ?? byArea);
 
   const drop = voltageDropPercent({
     lengthM: params.lengthM,
@@ -35,9 +46,6 @@ function sizeCircuit(params: CircuitParams, audit: AuditTrail): CableSelection {
     circuitVoltageV: params.circuitVoltageV,
   });
 
-  // Ampacity must cover the design current with a 1.25 margin, derated for
-  // rooftop ambient temperature (study §4.6).
-  const designAmpacity = (params.currentA * 1.25) / params.tempDeratingFactor;
   const ampacityPasses = cable.ampacityA >= designAmpacity;
 
   audit.add({
