@@ -1,5 +1,5 @@
 import { AuditTrail } from '../audit';
-import { calculateDailyLoad } from '../formulas/load';
+import { calculateDailyLoad, calculateTotalDailyLoad } from '../formulas/load';
 import type { LoadItem } from '../types';
 
 export const WORKED_LOADS: LoadItem[] = [
@@ -69,5 +69,42 @@ describe('calculateDailyLoad', () => {
   it('applies surge factor to motor loads', () => {
     // 50×1 + 150×5 + 100×1 + 500×5 = 50 + 750 + 100 + 2500
     expect(result.peakSurgeWatts).toBeCloseTo(3400, 2);
+  });
+});
+
+describe('calculateTotalDailyLoad', () => {
+  it('uses the entered kWh directly and estimates peak/surge when omitted', () => {
+    const audit = new AuditTrail();
+    const result = calculateTotalDailyLoad(
+      { totalDailyKwh: 2.35, isAc: true, inverterEfficiency: 0.9 },
+      audit,
+    );
+    expect(result.totalWhPerDay).toBeCloseTo(2350, 2);
+    expect(result.acWhPerDay).toBeCloseTo(2350, 2);
+    expect(result.dcWhPerDay).toBe(0);
+    expect(result.dcEquivalentWhPerDay).toBeCloseTo(2350 / 0.9, 2);
+    // 2350 Wh ÷ 6 h = 391.67 W peak, × 1.5 = 587.5 W surge
+    expect(result.peakSimultaneousWatts).toBeCloseTo(2350 / 6, 2);
+    expect(result.peakSurgeWatts).toBeCloseTo((2350 / 6) * 1.5, 2);
+    expect(audit.all.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('honors explicit peak and surge figures', () => {
+    const result = calculateTotalDailyLoad(
+      { totalDailyKwh: 2.35, peakKw: 0.8, surgeKw: 3.4, isAc: true, inverterEfficiency: 0.9 },
+      new AuditTrail(),
+    );
+    expect(result.peakSimultaneousWatts).toBeCloseTo(800, 2);
+    expect(result.peakSurgeWatts).toBeCloseTo(3400, 2);
+  });
+
+  it('treats DC totals as inverter-less', () => {
+    const result = calculateTotalDailyLoad(
+      { totalDailyKwh: 2.35, isAc: false, inverterEfficiency: 0.9 },
+      new AuditTrail(),
+    );
+    expect(result.acWhPerDay).toBe(0);
+    expect(result.dcWhPerDay).toBeCloseTo(2350, 2);
+    expect(result.dcEquivalentWhPerDay).toBeCloseTo(2350, 2);
   });
 });

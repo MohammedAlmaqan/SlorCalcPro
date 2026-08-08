@@ -143,6 +143,61 @@ describe('projectRepo', () => {
     expect(copy.id).not.toBe(project.id);
   });
 
+  it('persists total load mode and round-trips through buildInput', async () => {
+    const db = await openTestDb();
+    const repo = projectRepo(db);
+
+    const project = await repo.createProject({ name: 'Meter Site' });
+    const scenario = project.scenarios[0];
+
+    await repo.updateScenario(scenario.id, {
+      loadMode: 'total',
+      totalDailyKwh: 12.5,
+      totalPeakKw: 3.2,
+      totalSurgeKw: 6.4,
+      totalLoadIsAc: true,
+      loads: [],
+    });
+
+    const reloaded = await repo.getScenario(scenario.id);
+    expect(reloaded?.loadMode).toBe('total');
+    expect(reloaded?.totalDailyKwh).toBe(12.5);
+    expect(reloaded?.totalPeakKw).toBe(3.2);
+    expect(reloaded?.totalSurgeKw).toBe(6.4);
+    expect(reloaded?.totalLoadIsAc).toBe(true);
+
+    const input = await repo.buildInput(scenario.id);
+    expect(input.loadMode).toBe('total');
+    expect(input.totalDailyKwh).toBe(12.5);
+    expect(input.totalPeakKw).toBe(3.2);
+    expect(input.totalSurgeKw).toBe(6.4);
+    expect(input.totalLoadIsAc).toBe(true);
+  });
+
+  it('duplicates a project preserving total load mode fields', async () => {
+    const db = await openTestDb();
+    const repo = projectRepo(db);
+
+    const project = await repo.createProject({ name: 'Total Original' });
+    const scenario = project.scenarios[0];
+    await repo.updateScenario(scenario.id, {
+      loadMode: 'total',
+      totalDailyKwh: 8,
+      totalPeakKw: 2,
+      totalSurgeKw: 4,
+      totalLoadIsAc: false,
+      loads: [],
+    });
+
+    const copy = await repo.duplicateProject(project.id);
+    const copied = copy.scenarios[0];
+    expect(copied.loadMode).toBe('total');
+    expect(copied.totalDailyKwh).toBe(8);
+    expect(copied.totalPeakKw).toBe(2);
+    expect(copied.totalSurgeKw).toBe(4);
+    expect(copied.totalLoadIsAc).toBe(false);
+  });
+
   it('deletes a project and cascades scenarios', async () => {
     const db = await openTestDb();
     const repo = projectRepo(db);

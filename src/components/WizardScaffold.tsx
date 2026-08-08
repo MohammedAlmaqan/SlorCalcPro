@@ -8,8 +8,30 @@ export function StepHeader(props: {
   subtitle?: string;
 }) {
   const theme = useTheme();
+  const dots = Array.from({ length: props.total }, (_, i) => i + 1);
   return (
     <View style={styles.header}>
+      <View style={styles.stepRow}>
+        {dots.map((n) => {
+          const active = n === props.step;
+          const done = n < props.step;
+          return (
+            <View
+              key={n}
+              style={[
+                styles.dot,
+                {
+                  backgroundColor: done
+                    ? theme.colors.tertiary
+                    : active
+                      ? theme.colors.secondary
+                      : theme.colors.outlineVariant,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
       <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
         Step {props.step} of {props.total}
       </Text>
@@ -60,6 +82,16 @@ const styles = StyleSheet.create({
   header: {
     gap: 4,
     marginBottom: 16,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4,
+  },
+  dot: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
   },
   nav: {
     flexDirection: 'row',

@@ -266,12 +266,21 @@ export default function ReportsScreen() {
             ) : (
               <>
                 <View style={styles.statsRow}>
-                  <StatCard label="Daily load" value={f.power(result.dailyLoad.totalWhPerDay)} />
-                  <StatCard label="PV array" value={f.power(result.pv.actualArrayWatts)} />
+                  <StatCard
+                    label="Daily load"
+                    value={f.power(result.dailyLoad.totalWhPerDay)}
+                    tint={theme.colors.primary}
+                  />
+                  <StatCard
+                    label="PV array"
+                    value={f.power(result.pv.actualArrayWatts)}
+                    tint={theme.colors.secondary}
+                  />
                   <StatCard
                     label="Battery"
                     value={f.number(result.battery.actualCapacityAh, 0)}
                     unit="Ah"
+                    tint={theme.colors.tertiary}
                   />
                   <StatCard
                     label="Inverter"
@@ -279,6 +288,7 @@ export default function ReportsScreen() {
                       result.inverter.selectedContinuousWatts ??
                         result.inverter.recommendedContinuousWatts,
                     )}
+                    tint={theme.colors.primary}
                   />
                 </View>
 

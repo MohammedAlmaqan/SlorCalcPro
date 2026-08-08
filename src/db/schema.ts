@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS components (
   brand         TEXT NOT NULL,
   model         TEXT NOT NULL,
   spec_json     TEXT NOT NULL,
-  is_reference  INTEGER NOT NULL DEFAULT 0,
+  is_reference   INTEGER NOT NULL DEFAULT 0,
   is_favorite   INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -117,6 +117,16 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+`,
+  },
+  {
+    version: 2,
+    up: `
+ALTER TABLE scenarios ADD COLUMN load_mode TEXT NOT NULL DEFAULT 'appliances';
+ALTER TABLE scenarios ADD COLUMN total_daily_kwh REAL;
+ALTER TABLE scenarios ADD COLUMN total_peak_kw REAL;
+ALTER TABLE scenarios ADD COLUMN total_surge_kw REAL;
+ALTER TABLE scenarios ADD COLUMN total_load_is_ac INTEGER NOT NULL DEFAULT 1;
 `,
   },
 ];

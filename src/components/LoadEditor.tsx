@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, List, Text, TextInput, useTheme } from 'react-native-paper';
 
+import {
+  TOTAL_LOAD_DEFAULT_SURGE_MULTIPLIER,
+  TOTAL_LOAD_ESTIMATE_HOURS,
+} from '@/core/formulas/load';
 import type { LoadItem } from '@/core/types';
+import { LOAD_BUNDLES, type LoadBundle } from '@/data/bundles';
 import type { AppliancePreset } from '@/data/types';
 import { newId } from '@/utils/id';
 
@@ -48,6 +53,15 @@ export function LoadEditor(props: {
         surgeFactor: preset.surgeFactor,
       },
     ]);
+  };
+
+  const addFromBundle = (bundle: LoadBundle) => {
+    const added = bundle.appliances.map((appliance) => ({
+      id: newId(),
+      quantity: 1,
+      ...appliance,
+    }));
+    onChangeLoads([...loads, ...added]);
     setQuery('');
     setPresetMode(false);
   };
@@ -82,6 +96,24 @@ export function LoadEditor(props: {
       {presetMode ? (
         <Card mode="outlined" style={styles.presetCard}>
           <Card.Content>
+            <Text variant="labelLarge" style={styles.bundleLabel}>
+              Quick-start bundles
+            </Text>
+            <View style={styles.chips}>
+              {LOAD_BUNDLES.map((bundle) => (
+                <Chip
+                  key={bundle.id}
+                  icon={bundle.icon}
+                  onPress={() => addFromBundle(bundle)}
+                  style={styles.chip}
+                >
+                  {bundle.name}
+                </Chip>
+              ))}
+            </View>
+            <Text variant="labelLarge" style={styles.bundleLabel}>
+              Single appliances
+            </Text>
             <TextInput
               mode="outlined"
               placeholder="Search appliances…"
@@ -220,6 +252,77 @@ function LoadRow(props: {
   );
 }
 
+/**
+ * Total-load editor for the 'total' load mode: enter the whole site's daily
+ * energy instead of listing appliances. Peak/surge are optional and estimated
+ * when left blank.
+ */
+export function TotalLoadEditor(props: {
+  totalDailyKwh: number | null;
+  totalPeakKw: number | null;
+  totalSurgeKw: number | null;
+  totalLoadIsAc: boolean;
+  onChange: (patch: {
+    totalDailyKwh: number | null;
+    totalPeakKw: number | null;
+    totalSurgeKw: number | null;
+    totalLoadIsAc: boolean;
+  }) => void;
+}) {
+  const { totalDailyKwh, totalPeakKw, totalSurgeKw, totalLoadIsAc, onChange } = props;
+  const theme = useTheme();
+
+  const peakKw = totalPeakKw ?? (totalDailyKwh ?? 0) / TOTAL_LOAD_ESTIMATE_HOURS;
+  const surgeKw = totalSurgeKw ?? peakKw * TOTAL_LOAD_DEFAULT_SURGE_MULTIPLIER;
+
+  return (
+    <View style={styles.container}>
+      <NumberField
+        label="Total daily energy"
+        value={totalDailyKwh}
+        onChange={(v) => onChange({ totalDailyKwh: v, totalPeakKw, totalSurgeKw, totalLoadIsAc })}
+        unit="kWh/day"
+        helperText="Whole-site daily consumption, e.g. from a utility bill or meter."
+      />
+      <NumberField
+        label="Peak simultaneous load (optional)"
+        value={totalPeakKw}
+        onChange={(v) => onChange({ totalDailyKwh, totalPeakKw: v, totalSurgeKw, totalLoadIsAc })}
+        unit="kW"
+        helperText={`Estimated as ${TOTAL_LOAD_ESTIMATE_HOURS} h/day of the daily energy when blank.`}
+      />
+      <NumberField
+        label="Peak surge load (optional)"
+        value={totalSurgeKw}
+        onChange={(v) => onChange({ totalDailyKwh, totalPeakKw, totalSurgeKw: v, totalLoadIsAc })}
+        unit="kW"
+        helperText={`Estimated as peak × ${TOTAL_LOAD_DEFAULT_SURGE_MULTIPLIER} when blank (motor startup).`}
+      />
+      <SegmentedField
+        label="Circuit"
+        value={totalLoadIsAc ? 'AC' : 'DC'}
+        options={[
+          { value: 'AC', label: 'AC' },
+          { value: 'DC', label: 'DC' },
+        ]}
+        onChange={(v) =>
+          onChange({ totalDailyKwh, totalPeakKw, totalSurgeKw, totalLoadIsAc: v === 'AC' })
+        }
+      />
+      <List.Item
+        title="Sizing summary"
+        description={`${totalDailyKwh ?? 0} kWh/day · peak ≈ ${peakKw.toFixed(1)} kW · surge ≈ ${surgeKw.toFixed(1)} kW${totalLoadIsAc ? ' · AC (via inverter)' : ' · DC (direct)'}`}
+        left={() => (
+          <List.Icon
+            icon={totalLoadIsAc ? 'power-plug-outline' : 'battery-charging'}
+            color={theme.colors.primary}
+          />
+        )}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     gap: 12,
@@ -229,6 +332,9 @@ const styles = StyleSheet.create({
   },
   presetCard: {
     marginBottom: 4,
+  },
+  bundleLabel: {
+    marginBottom: 8,
   },
   chips: {
     flexDirection: 'row',

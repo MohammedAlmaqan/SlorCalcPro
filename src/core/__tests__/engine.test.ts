@@ -145,7 +145,19 @@ describe('designSystem — off-grid design', () => {
 
 describe('designSystem — standards policy', () => {
   const nonCompliant = (): SystemInput => ({
-    loads: [{ id: 'l1', name: 'Fridge', quantity: 1, powerWatts: 150, hoursPerDay: 24, isAc: true, isSimultaneous: true, isInductive: true, surgeFactor: 3 }],
+    loads: [
+      {
+        id: 'l1',
+        name: 'Fridge',
+        quantity: 1,
+        powerWatts: 150,
+        hoursPerDay: 24,
+        isAc: true,
+        isSimultaneous: true,
+        isInductive: true,
+        surgeFactor: 3,
+      },
+    ],
     systemType: 'off-grid',
     winterPsh: 4.0,
     summerPsh: 6.0,
@@ -171,5 +183,42 @@ describe('designSystem — standards policy', () => {
   it('hides standards checks in off mode', () => {
     const result = designSystem({ ...nonCompliant(), standardsPolicy: 'off' });
     expect(result.warnings.some((w) => w.code.startsWith('NEC'))).toBe(false);
+  });
+});
+
+describe('designSystem — total load mode', () => {
+  function totalInput(): SystemInput {
+    return {
+      loads: [],
+      loadMode: 'total',
+      totalDailyKwh: 2.35,
+      totalPeakKw: 0.8,
+      totalSurgeKw: 3.4,
+      totalLoadIsAc: true,
+      systemType: 'hybrid',
+      winterPsh: 4.0,
+      summerPsh: 6.0,
+      autonomyDays: 2,
+      chemistry: 'lifepo4',
+      systemVoltageOverride: 48,
+      selected: { battery: LIFEPO4_12V_200AH },
+    };
+  }
+
+  it('sizes identically to an equivalent appliance list', () => {
+    const appliance = designSystem(hybridInput());
+    const total = designSystem(totalInput());
+
+    expect(total.dailyLoad.totalWhPerDay).toBeCloseTo(2350, 1);
+    expect(total.dailyLoad.peakSimultaneousWatts).toBeCloseTo(800, 1);
+    expect(total.dailyLoad.peakSurgeWatts).toBeCloseTo(3400, 1);
+
+    expect(total.pv.requiredArrayWatts).toBeCloseTo(appliance.pv.requiredArrayWatts, 1);
+    expect(total.battery.requiredKwh).toBeCloseTo(appliance.battery.requiredKwh, 1);
+    expect(total.inverter.recommendedContinuousWatts).toBe(
+      appliance.inverter.recommendedContinuousWatts,
+    );
+    expect(total.inverter.recommendedSurgeWatts).toBe(appliance.inverter.recommendedSurgeWatts);
+    expect(total.inverter.voltageMatch).toBe(true);
   });
 });

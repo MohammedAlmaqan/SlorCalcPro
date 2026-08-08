@@ -19,6 +19,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ProjectRecord } from '@/db/repos/projects';
 import { useProjectStore } from '@/store/projects';
 
+function ProjectAvatar() {
+  const theme = useTheme();
+  return (
+    <View style={[styles.avatar, { backgroundColor: theme.colors.primaryContainer }]}>
+      <IconButton icon="solar-panel-large" iconColor={theme.colors.onPrimaryContainer} />
+    </View>
+  );
+}
+
 export default function ProjectsScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -66,13 +75,22 @@ export default function ProjectsScreen() {
 
       {projects.length === 0 && !loading ? (
         <View style={styles.empty}>
-          <Text variant="titleMedium">No projects yet</Text>
+          <View style={[styles.emptyIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+            <IconButton
+              icon="white-balance-sunny"
+              size={40}
+              iconColor={theme.colors.onPrimaryContainer}
+            />
+          </View>
+          <Text variant="titleLarge" style={styles.emptyTitle}>
+            Power your first site
+          </Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            Create a project to run your first solar system design.
+            Create a project to size a solar system from your appliances or a daily kWh figure.
           </Text>
           <Button
             mode="contained"
-            icon="plus"
+            icon="solar-power"
             onPress={() => router.push('/project/new')}
             style={styles.emptyButton}
           >
@@ -99,6 +117,7 @@ export default function ProjectsScreen() {
                     ? `${item.clientName} · updated ${new Date(item.updatedAt).toLocaleDateString()}`
                     : `Updated ${new Date(item.updatedAt).toLocaleDateString()}`
                 }
+                left={ProjectAvatar}
                 right={() => (
                   <Menu
                     visible={menuFor === item.id}
@@ -141,8 +160,9 @@ export default function ProjectsScreen() {
       )}
 
       <FAB
-        icon="plus"
+        icon="solar-panel-large"
         label="New project"
+        variant="primary"
         style={styles.fab}
         onPress={() => router.push('/project/new')}
       />
@@ -198,12 +218,25 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 8,
   },
+  avatar: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginLeft: 4,
+  },
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     padding: 32,
+  },
+  emptyIcon: {
+    borderRadius: 48,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontWeight: '700',
   },
   emptyButton: {
     marginTop: 8,

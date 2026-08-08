@@ -3,6 +3,10 @@ import type { DailyLoadResult, LoadItem } from '../types';
 
 export const DEFAULT_INVERTER_EFFICIENCY = 0.9;
 export const DEFAULT_MOTOR_SURGE_FACTOR = 5;
+/** Hours used to estimate peak load when the user only provides daily kWh. */
+export const TOTAL_LOAD_ESTIMATE_HOURS = 6;
+/** Surge multiplier applied to the peak when the user omits a surge figure. */
+export const TOTAL_LOAD_DEFAULT_SURGE_MULTIPLIER = 1.5;
 
 /**
  * Daily energy audit (study §2.1):
@@ -89,4 +93,87 @@ export function calculateDailyLoad(
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * Daily load audit for the 'total' load mode, where the user provides the
+ * whole-house daily energy instead of an appliance list. Peak and surge loads
+ * are taken from the optional inputs or estimated when omitted.
+ */
+export function calculateTotalDailyLoad(
+  input: {
+    totalDailyKwh: number;
+    peakKw?: number;
+    surgeKw?: number;
+    isAc: boolean;
+    inverterEfficiency: number;
+  },
+  audit: AuditTrail,
+): DailyLoadResult {
+  const totalWhPerDay = Math.max(0, input.totalDailyKwh) * 1000;
+  const acWhPerDay = input.isAc ? totalWhPerDay : 0;
+  const dcWhPerDay = input.isAc ? 0 : totalWhPerDay;
+  const dcEquivalentWhPerDay = input.isAc
+    ? totalWhPerDay / input.inverterEfficiency
+    : totalWhPerDay;
+
+  const peakSimultaneousWatts =
+    (input.peakKw !== undefined && input.peakKw > 0
+      ? input.peakKw
+      : totalWhPerDay / 1000 / TOTAL_LOAD_ESTIMATE_HOURS) * 1000;
+  const peakSurgeWatts =
+    (input.surgeKw !== undefined && input.surgeKw > 0
+      ? input.surgeKw
+      : (peakSimultaneousWatts / 1000) * TOTAL_LOAD_DEFAULT_SURGE_MULTIPLIER) * 1000;
+
+  audit.add({
+    id: 'load.energy',
+    description: 'Daily energy consumption (total entered by user)',
+    formula: 'entered daily kWh',
+    values: { totalKwhPerDay: round2(totalWhPerDay / 1000), isAc: input.isAc ? 'AC' : 'DC' },
+    result: round2(totalWhPerDay),
+    unit: 'Wh/day',
+  });
+
+  audit.add({
+    id: 'load.dcEquivalent',
+    description: 'DC-equivalent energy at inverter input',
+    formula: input.isAc ? 'AC_Wh ÷ inverterEfficiency' : 'DC_Wh',
+    values: { acWhPerDay: round2(acWhPerDay), inverterEfficiency: input.inverterEfficiency },
+    result: round2(dcEquivalentWhPerDay),
+    unit: 'Wh/day',
+  });
+
+  audit.add({
+    id: 'load.peak',
+    description: 'Peak simultaneous load',
+    formula:
+      input.peakKw !== undefined
+        ? 'entered peak kW'
+        : `estimated as daily kWh ÷ ${TOTAL_LOAD_ESTIMATE_HOURS} h`,
+    values: { peakKw: round2(peakSimultaneousWatts / 1000) },
+    result: round2(peakSimultaneousWatts),
+    unit: 'W',
+  });
+
+  audit.add({
+    id: 'load.surge',
+    description: 'Peak surge load (motor startup)',
+    formula:
+      input.surgeKw !== undefined
+        ? 'entered surge kW'
+        : `estimated as peak × ${TOTAL_LOAD_DEFAULT_SURGE_MULTIPLIER}`,
+    values: { surgeKw: round2(peakSurgeWatts / 1000) },
+    result: round2(peakSurgeWatts),
+    unit: 'W',
+  });
+
+  return {
+    totalWhPerDay,
+    acWhPerDay,
+    dcWhPerDay,
+    dcEquivalentWhPerDay,
+    peakSimultaneousWatts,
+    peakSurgeWatts,
+  };
 }

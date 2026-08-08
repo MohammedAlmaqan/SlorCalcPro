@@ -1,8 +1,8 @@
-import type { LoadItem } from '../core/types';
+import type { LoadItem, LoadMode } from '../core/types';
 import type { ProjectWithScenarios } from '../db/repos/projects';
 
 export const EXPORT_FORMAT = 'solarcalcpro-project' as const;
-export const EXPORT_VERSION = 1 as const;
+export const EXPORT_VERSION = 2 as const;
 
 export interface ProjectExport {
   format: typeof EXPORT_FORMAT;
@@ -41,6 +41,11 @@ export interface ImportedScenario {
   selectedInverterId: string | null;
   selectedBatteryId: string | null;
   selectedControllerId: string | null;
+  loadMode: LoadMode;
+  totalDailyKwh: number | null;
+  totalPeakKw: number | null;
+  totalSurgeKw: number | null;
+  totalLoadIsAc: boolean;
   loads: LoadItem[];
   designResult: unknown;
 }
@@ -80,6 +85,11 @@ export function exportProject(project: ProjectWithScenarios): string {
         selectedInverterId: scenario.selectedInverterId,
         selectedBatteryId: scenario.selectedBatteryId,
         selectedControllerId: scenario.selectedControllerId,
+        loadMode: scenario.loadMode,
+        totalDailyKwh: scenario.totalDailyKwh,
+        totalPeakKw: scenario.totalPeakKw,
+        totalSurgeKw: scenario.totalSurgeKw,
+        totalLoadIsAc: scenario.totalLoadIsAc,
         loads: scenario.loads,
         designResult: scenario.designResult,
       })),
@@ -146,6 +156,11 @@ export function parseProjectImport(text: string): ProjectExport {
         selectedBatteryId: typeof s.selectedBatteryId === 'string' ? s.selectedBatteryId : null,
         selectedControllerId:
           typeof s.selectedControllerId === 'string' ? s.selectedControllerId : null,
+        loadMode: s.loadMode === 'total' ? 'total' : 'appliances',
+        totalDailyKwh: optionalNumber(s.totalDailyKwh),
+        totalPeakKw: optionalNumber(s.totalPeakKw),
+        totalSurgeKw: optionalNumber(s.totalSurgeKw),
+        totalLoadIsAc: s.totalLoadIsAc !== false,
         loads: Array.isArray(s.loads)
           ? (s.loads.filter(
               (l): l is LoadItem => isRecord(l) && typeof l.id === 'string',

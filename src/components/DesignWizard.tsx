@@ -4,7 +4,7 @@ import { Button, Card, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { ComponentSlot, ManualPshDialog, PshPicker } from '@/components/pickers';
 import { NumberField, SegmentedField, StepperField } from '@/components/form';
-import { LoadEditor } from '@/components/LoadEditor';
+import { LoadEditor, TotalLoadEditor } from '@/components/LoadEditor';
 import { StepHeader, StepNav } from '@/components/WizardScaffold';
 import {
   AuditTrailList,
@@ -21,6 +21,7 @@ import type {
   ChargeControllerSpec,
   InverterSpec,
   LoadItem,
+  LoadMode,
   PanelSpec,
   StandardsPolicy,
   SystemInput,
@@ -58,7 +59,12 @@ export function DesignWizard(props: {
 
   const [projectName, setProjectName] = useState('');
   const [clientName, setClientName] = useState('');
+  const [loadMode, setLoadMode] = useState<LoadMode>(initial?.loadMode ?? 'appliances');
   const [loads, setLoads] = useState<LoadItem[]>(initial?.loads ?? []);
+  const [totalDailyKwh, setTotalDailyKwh] = useState<number | null>(initial?.totalDailyKwh ?? null);
+  const [totalPeakKw, setTotalPeakKw] = useState<number | null>(initial?.totalPeakKw ?? null);
+  const [totalSurgeKw, setTotalSurgeKw] = useState<number | null>(initial?.totalSurgeKw ?? null);
+  const [totalLoadIsAc, setTotalLoadIsAc] = useState<boolean>(initial?.totalLoadIsAc ?? true);
   const [systemType, setSystemType] = useState<SystemType>(initial?.systemType ?? 'off-grid');
   const [winterPsh, setWinterPsh] = useState<number | null>(initial?.winterPsh ?? null);
   const [summerPsh, setSummerPsh] = useState<number | null>(initial?.summerPsh ?? null);
@@ -132,6 +138,11 @@ export function DesignWizard(props: {
   const input = useMemo<SystemInput>(() => {
     return {
       loads,
+      loadMode,
+      totalDailyKwh: totalDailyKwh ?? undefined,
+      totalPeakKw: totalPeakKw ?? undefined,
+      totalSurgeKw: totalSurgeKw ?? undefined,
+      totalLoadIsAc,
       systemType,
       winterPsh: effectiveWinterPsh,
       summerPsh: effectiveSummerPsh,
@@ -149,6 +160,11 @@ export function DesignWizard(props: {
     };
   }, [
     loads,
+    loadMode,
+    totalDailyKwh,
+    totalPeakKw,
+    totalSurgeKw,
+    totalLoadIsAc,
     systemType,
     effectiveWinterPsh,
     effectiveSummerPsh,
@@ -241,7 +257,12 @@ export function DesignWizard(props: {
         selectedInverterId,
         selectedBatteryId,
         selectedControllerId,
+        loadMode,
         loads,
+        totalDailyKwh,
+        totalPeakKw,
+        totalSurgeKw,
+        totalLoadIsAc,
       };
       let projectId = '';
       let scenarioId = '';
@@ -278,6 +299,46 @@ export function DesignWizard(props: {
   const wizardMode = useSettingsStore((s) => s.wizardMode);
   const expert = wizardMode === 'expert';
 
+  const loadSection = (
+    <>
+      <SegmentedField
+        label="Load description"
+        value={loadMode}
+        onChange={(v) => setLoadMode(v as LoadMode)}
+        options={[
+          { value: 'appliances', label: 'Appliances' },
+          { value: 'total', label: 'Total (kWh)' },
+        ]}
+      />
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        {loadMode === 'appliances'
+          ? 'List every appliance — the most accurate way to size the system.'
+          : 'Enter the whole site’s daily consumption (e.g. from a bill or meter). Peak and surge loads are estimated when left blank.'}
+      </Text>
+      {loadMode === 'appliances' ? (
+        <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
+      ) : (
+        <TotalLoadEditor
+          totalDailyKwh={totalDailyKwh}
+          totalPeakKw={totalPeakKw}
+          totalSurgeKw={totalSurgeKw}
+          totalLoadIsAc={totalLoadIsAc}
+          onChange={({
+            totalDailyKwh: kwh,
+            totalPeakKw: peak,
+            totalSurgeKw: surge,
+            totalLoadIsAc: isAc,
+          }) => {
+            setTotalDailyKwh(kwh);
+            setTotalPeakKw(peak);
+            setTotalSurgeKw(surge);
+            setTotalLoadIsAc(isAc);
+          }}
+        />
+      )}
+    </>
+  );
+
   const step1 = (
     <View style={styles.gap}>
       {mode === 'create' ? (
@@ -301,10 +362,10 @@ export function DesignWizard(props: {
             </Card.Content>
           </Card>
           <SectionTitle title="Load audit" icon="format-list-bulleted" />
-          <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
+          {loadSection}
         </>
       ) : (
-        <LoadEditor loads={loads} presets={reference.presets} onChangeLoads={setLoads} />
+        loadSection
       )}
     </View>
   );
@@ -599,8 +660,14 @@ function ResultsView(props: {
           )}
           unit={useKw ? 'kWh/day' : 'Wh/day'}
           icon="lightning-bolt"
+          tint={theme.colors.primary}
         />
-        <StatCard label="Peak load" value={f.power(dailyLoad.peakSimultaneousWatts)} icon="gauge" />
+        <StatCard
+          label="Peak load"
+          value={f.power(dailyLoad.peakSimultaneousWatts)}
+          icon="gauge"
+          tint={theme.colors.primary}
+        />
       </View>
       <View style={styles.statRow}>
         <StatCard
@@ -608,6 +675,7 @@ function ResultsView(props: {
           value={f.power(pv.actualArrayWatts)}
           hint={`${pv.seriesCount}S × ${pv.parallelCount}P panels`}
           icon="solar-panel"
+          tint={theme.colors.secondary}
         />
         <StatCard
           label="Battery bank"
@@ -615,6 +683,7 @@ function ResultsView(props: {
           unit="Ah"
           hint={`${battery.batteryCount} cells · ${f.number(useKw ? battery.actualCapacityKwh : battery.actualCapacityKwh * 1000, useKw ? 2 : 0)} ${useKw ? 'kWh' : 'Wh'}`}
           icon="battery"
+          tint={theme.colors.tertiary}
         />
       </View>
       <View style={styles.statRow}>
@@ -623,6 +692,7 @@ function ResultsView(props: {
           value={f.power(inverter.recommendedContinuousWatts)}
           hint={`Surge ${f.power(inverter.recommendedSurgeWatts)}`}
           icon="transmission-tower"
+          tint={theme.colors.primary}
         />
         <StatCard
           label="Controller"
@@ -630,6 +700,7 @@ function ResultsView(props: {
           unit={controller.minCurrentA > 0 ? 'A' : undefined}
           hint={controller.recommendedType}
           icon="cog"
+          tint={theme.colors.primary}
         />
       </View>
 

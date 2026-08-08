@@ -7,18 +7,27 @@ import type { AuditStep, Severity, Warning } from '@/core/types';
 import type { IconName } from './form';
 
 export function SectionTitle(props: { title: string; icon?: IconName }) {
+  const theme = useTheme();
   return (
     <View style={styles.sectionTitle}>
-      {props.icon ? <MaterialCommunityIcons name={props.icon} size={20} color="gray" /> : null}
+      {props.icon ? (
+        <MaterialCommunityIcons
+          name={props.icon}
+          size={20}
+          color={theme.colors.secondary}
+          style={styles.sectionIcon}
+        />
+      ) : null}
       <Text variant="titleMedium">{props.title}</Text>
     </View>
   );
 }
 
 export function KeyValueRow(props: { label: string; value: string; strong?: boolean }) {
+  const theme = useTheme();
   return (
     <View style={styles.kvRow}>
-      <Text variant="bodyMedium" style={styles.kvLabel}>
+      <Text variant="bodyMedium" style={[styles.kvLabel, { color: theme.colors.onSurfaceVariant }]}>
         {props.label}
       </Text>
       <Text variant={props.strong ? 'titleSmall' : 'bodyMedium'} style={styles.kvValue}>
@@ -34,21 +43,29 @@ export function StatCard(props: {
   unit?: string;
   hint?: string;
   icon?: IconName;
+  /** Accent color for the icon and top border; defaults to the primary color. */
+  tint?: string;
 }) {
   const theme = useTheme();
+  const tint = props.tint ?? theme.colors.primary;
   return (
     <Card
-      mode="contained"
-      style={[styles.statCard, { backgroundColor: theme.colors.surfaceVariant }]}
+      mode="outlined"
+      style={[
+        styles.statCard,
+        { backgroundColor: theme.colors.surfaceVariant, borderTopColor: tint },
+      ]}
     >
       <Card.Content>
         {props.icon ? (
-          <MaterialCommunityIcons
-            name={props.icon}
-            size={18}
-            color={theme.colors.primary}
-            style={styles.statIcon}
-          />
+          <View style={[styles.statIconWrap, { backgroundColor: tint }]}>
+            <MaterialCommunityIcons
+              name={props.icon}
+              size={16}
+              color={theme.colors.surface}
+              style={styles.statIcon}
+            />
+          </View>
         ) : null}
         <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           {props.label}
@@ -143,6 +160,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginVertical: 8,
   },
+  sectionIcon: {
+    marginTop: 1,
+  },
   kvRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -152,7 +172,6 @@ const styles = StyleSheet.create({
   },
   kvLabel: {
     flex: 1,
-    color: '#6F7C84',
   },
   kvValue: {
     textAlign: 'right',
@@ -160,9 +179,19 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: '45%',
+    borderTopWidth: 3,
+    overflow: 'hidden',
+  },
+  statIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
   },
   statIcon: {
-    marginBottom: 4,
+    margin: 0,
   },
   audit: {
     gap: 8,

@@ -76,13 +76,21 @@ export default function ProjectDetailScreen() {
       <Card
         key={scenario.id}
         mode={isActive ? 'contained' : 'outlined'}
-        style={styles.scenarioCard}
+        style={[
+          styles.scenarioCard,
+          isActive ? { backgroundColor: theme.colors.primaryContainer } : null,
+        ]}
         onPress={() => router.push(`/project/scenario/${scenario.id}`)}
       >
         <Card.Title
           title={
             <View style={styles.titleRow}>
-              <Text variant="titleMedium">{scenario.name}</Text>
+              <Text
+                variant="titleMedium"
+                style={isActive ? { color: theme.colors.onPrimaryContainer } : undefined}
+              >
+                {scenario.name}
+              </Text>
               {isActive ? <Badge>Active</Badge> : null}
             </View>
           }
@@ -91,6 +99,24 @@ export default function ProjectDetailScreen() {
               ? `${Math.round(result.pv.actualArrayWatts)} W array · ${Math.round(result.dailyLoad.totalWhPerDay)} Wh/day`
               : 'Not designed yet'
           }
+          left={() => (
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: isActive
+                    ? theme.colors.onPrimaryContainer
+                    : theme.colors.surfaceVariant,
+                },
+              ]}
+            >
+              <IconButton
+                icon="solar-panel-large"
+                iconColor={isActive ? theme.colors.primaryContainer : theme.colors.onSurfaceVariant}
+                size={20}
+              />
+            </View>
+          )}
           right={() => (
             <Menu
               visible={scenarioMenu === scenario.id}
@@ -133,7 +159,12 @@ export default function ProjectDetailScreen() {
           )}
         />
         <Card.Content>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          <Text
+            variant="bodySmall"
+            style={{
+              color: isActive ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant,
+            }}
+          >
             {scenario.systemType} · {scenario.chemistry} · {scenario.systemVoltageV ?? 'auto'} V ·{' '}
             {scenario.loads.length} loads
             {scenario.pshLocation ? ` · ${scenario.pshLocation.city}` : ''}
@@ -264,6 +295,11 @@ const styles = StyleSheet.create({
   },
   scenarioCard: {
     marginBottom: 8,
+  },
+  avatar: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginLeft: 4,
   },
   titleRow: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 export default function TabsLayout() {
@@ -11,7 +12,12 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
-        tabBarStyle: { backgroundColor: theme.colors.surface },
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.outlineVariant,
+          borderTopWidth: StyleSheet.hairlineWidth,
+        },
+        tabBarLabelStyle: styles.tabLabel,
       }}
     >
       <Tabs.Screen
@@ -19,7 +25,7 @@ export default function TabsLayout() {
         options={{
           title: 'Projects',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home-variant-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="solar-power" color={color} size={size} />
           ),
         }}
       />
@@ -28,7 +34,7 @@ export default function TabsLayout() {
         options={{
           title: 'Catalog',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="database-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="package-variant-closed" color={color} size={size} />
           ),
         }}
       />
@@ -37,7 +43,7 @@ export default function TabsLayout() {
         options={{
           title: 'Reports',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="file-pdf-box" color={color} size={size} />
+            <MaterialCommunityIcons name="file-chart-outline" color={color} size={size} />
           ),
         }}
       />
@@ -46,10 +52,17 @@ export default function TabsLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cog-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="tune-variant" color={color} size={size} />
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+});

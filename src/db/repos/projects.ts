@@ -2,6 +2,7 @@ import type {
   BatteryChemistry,
   DesignResult,
   LoadItem,
+  LoadMode,
   SystemInput,
   SystemType,
   SystemVoltage,
@@ -49,6 +50,11 @@ export interface ScenarioRecord {
   selectedInverterId: string | null;
   selectedBatteryId: string | null;
   selectedControllerId: string | null;
+  loadMode: LoadMode;
+  totalDailyKwh: number | null;
+  totalPeakKw: number | null;
+  totalSurgeKw: number | null;
+  totalLoadIsAc: boolean;
   loads: LoadItem[];
   designResult: DesignResult | null;
   createdAt: string;
@@ -90,6 +96,11 @@ export interface ScenarioPatch {
   selectedInverterId?: string | null;
   selectedBatteryId?: string | null;
   selectedControllerId?: string | null;
+  loadMode?: LoadMode;
+  totalDailyKwh?: number | null;
+  totalPeakKw?: number | null;
+  totalSurgeKw?: number | null;
+  totalLoadIsAc?: boolean;
   loads?: LoadItem[];
 }
 
@@ -133,6 +144,11 @@ interface ScenarioRow {
   selected_inverter_id: string | null;
   selected_battery_id: string | null;
   selected_controller_id: string | null;
+  load_mode: string;
+  total_daily_kwh: number | null;
+  total_peak_kw: number | null;
+  total_surge_kw: number | null;
+  total_load_is_ac: number;
   design_result_json: string | null;
   created_at: string;
   updated_at: string;
@@ -223,6 +239,14 @@ function applyPatch(patch: ScenarioPatch): {
   push('selected_inverter_id', patch.selectedInverterId);
   push('selected_battery_id', patch.selectedBatteryId);
   push('selected_controller_id', patch.selectedControllerId);
+  push('load_mode', patch.loadMode);
+  push('total_daily_kwh', patch.totalDailyKwh);
+  push('total_peak_kw', patch.totalPeakKw);
+  push('total_surge_kw', patch.totalSurgeKw);
+  push(
+    'total_load_is_ac',
+    patch.totalLoadIsAc === undefined ? undefined : patch.totalLoadIsAc ? 1 : 0,
+  );
   return { columns, values };
 }
 
@@ -265,6 +289,11 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
       selectedInverterId: row.selected_inverter_id,
       selectedBatteryId: row.selected_battery_id,
       selectedControllerId: row.selected_controller_id,
+      loadMode: row.load_mode as LoadMode,
+      totalDailyKwh: row.total_daily_kwh,
+      totalPeakKw: row.total_peak_kw,
+      totalSurgeKw: row.total_surge_kw,
+      totalLoadIsAc: row.total_load_is_ac === 1,
       loads: loads.map(toLoadItem),
       designResult: row.design_result_json
         ? (JSON.parse(row.design_result_json) as DesignResult)
@@ -401,8 +430,9 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
                system_loss_factor, dc_voltage_drop_percent, ac_voltage_drop_percent,
                min_temperature_c, temp_derating_factor, pv_cable_length_m, dc_cable_length_m,
                ac_cable_length_m, busbar_rating_a, main_breaker_a, selected_panel_id,
-               selected_inverter_id, selected_battery_id, selected_controller_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               selected_inverter_id, selected_battery_id, selected_controller_id,
+               load_mode, total_daily_kwh, total_peak_kw, total_surge_kw, total_load_is_ac)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               scenarioId,
               projectId,
@@ -430,6 +460,11 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
               scenario.selectedInverterId,
               scenario.selectedBatteryId,
               scenario.selectedControllerId,
+              scenario.loadMode,
+              scenario.totalDailyKwh,
+              scenario.totalPeakKw,
+              scenario.totalSurgeKw,
+              scenario.totalLoadIsAc ? 1 : 0,
             ],
           );
           await insertLoads(txn, scenarioId, scenario.loads);
@@ -459,8 +494,9 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
                min_temperature_c, temp_derating_factor, pv_cable_length_m, dc_cable_length_m,
                ac_cable_length_m, busbar_rating_a, main_breaker_a, selected_panel_id,
                selected_inverter_id, selected_battery_id, selected_controller_id,
+               load_mode, total_daily_kwh, total_peak_kw, total_surge_kw, total_load_is_ac,
                design_result_json)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               scenarioId,
               projectId,
@@ -488,6 +524,11 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
               scenario.selectedInverterId,
               scenario.selectedBatteryId,
               scenario.selectedControllerId,
+              scenario.loadMode,
+              scenario.totalDailyKwh,
+              scenario.totalPeakKw,
+              scenario.totalSurgeKw,
+              scenario.totalLoadIsAc ? 1 : 0,
               scenario.designResult ? JSON.stringify(scenario.designResult) : null,
             ],
           );
@@ -510,8 +551,9 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
              system_loss_factor, dc_voltage_drop_percent, ac_voltage_drop_percent,
              min_temperature_c, temp_derating_factor, pv_cable_length_m, dc_cable_length_m,
              ac_cable_length_m, busbar_rating_a, main_breaker_a, selected_panel_id,
-             selected_inverter_id, selected_battery_id, selected_controller_id)
-           VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             selected_inverter_id, selected_battery_id, selected_controller_id,
+             load_mode, total_daily_kwh, total_peak_kw, total_surge_kw, total_load_is_ac)
+           VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             scenarioId,
             projectId,
@@ -538,6 +580,11 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
             patch.selectedInverterId ?? null,
             patch.selectedBatteryId ?? null,
             patch.selectedControllerId ?? null,
+            patch.loadMode ?? 'appliances',
+            patch.totalDailyKwh ?? null,
+            patch.totalPeakKw ?? null,
+            patch.totalSurgeKw ?? null,
+            (patch.totalLoadIsAc ?? true) ? 1 : 0,
           ],
         );
         if (patch.loads) await insertLoads(txn, scenarioId, patch.loads);
@@ -589,6 +636,11 @@ export function projectRepo(db: DatabaseLike): ProjectRepo {
       ]);
       const input: SystemInput = {
         loads: scenario.loads,
+        loadMode: scenario.loadMode,
+        totalDailyKwh: scenario.totalDailyKwh ?? undefined,
+        totalPeakKw: scenario.totalPeakKw ?? undefined,
+        totalSurgeKw: scenario.totalSurgeKw ?? undefined,
+        totalLoadIsAc: scenario.totalLoadIsAc,
         systemType: scenario.systemType,
         winterPsh: scenario.winterPsh,
         summerPsh: scenario.summerPsh,

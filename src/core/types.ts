@@ -11,6 +11,9 @@ export type SystemVoltage = 12 | 24 | 48;
 
 export type ControllerType = 'MPPT' | 'PWM';
 
+/** How the daily load is described: appliance-by-appliance or a total figure. */
+export type LoadMode = 'appliances' | 'total';
+
 /**
  * How strictly international standards (NEC 690/705, IEC 62548) are applied:
  * - 'strict'   every code-compliance check is enforced as-is (default);
@@ -161,6 +164,19 @@ export interface SystemInput {
   acVoltageDropPercent?: number;
   /** Expected lowest ambient temperature (°C) for Voc derating, default −10. */
   minTemperatureC?: number;
+  /**
+   * Load description mode, default 'appliances'. In 'total' mode the daily
+   * energy and peak figures below are used instead of `loads`.
+   */
+  loadMode?: LoadMode;
+  /** Total daily energy consumption (kWh/day) for 'total' load mode. */
+  totalDailyKwh?: number;
+  /** Peak simultaneous load (kW) for 'total' mode; estimated if omitted. */
+  totalPeakKw?: number;
+  /** Peak surge load (kW) for 'total' mode; estimated if omitted. */
+  totalSurgeKw?: number;
+  /** Whether the entered total is AC (passes through the inverter), default true. */
+  totalLoadIsAc?: boolean;
   /** Rooftop cable temperature derating factor (0–1), default 0.6. */
   tempDeratingFactor?: number;
   /** One-way PV source cable length (m), default 10. */

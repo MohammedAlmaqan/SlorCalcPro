@@ -9,7 +9,7 @@ import { calculateBatteryBank } from './formulas/battery';
 import { pvSourceCircuitCurrent, sizeCables, DEFAULT_AC_VOLTAGE } from './formulas/cable';
 import { sizeChargeController, COLD_TEMP_VOC_MULTIPLIER } from './formulas/chargeController';
 import { sizeInverter } from './formulas/inverter';
-import { calculateDailyLoad } from './formulas/load';
+import { calculateDailyLoad, calculateTotalDailyLoad } from './formulas/load';
 import { sizeProtection } from './formulas/protection';
 import { calculatePvArray, type StringConstraints } from './formulas/pv';
 import { recommendSystemVoltage } from './formulas/systemVoltage';
@@ -48,7 +48,19 @@ export function designSystem(input: SystemInput): DesignResult {
   const controller = input.selected?.controller ?? REFERENCE_CONTROLLER;
 
   // 1. Daily load audit ----------------------------------------------------
-  const dailyLoad = calculateDailyLoad(input.loads, inverterEfficiency, audit);
+  const dailyLoad =
+    input.loadMode === 'total'
+      ? calculateTotalDailyLoad(
+          {
+            totalDailyKwh: input.totalDailyKwh ?? 0,
+            peakKw: input.totalPeakKw,
+            surgeKw: input.totalSurgeKw,
+            isAc: input.totalLoadIsAc ?? true,
+            inverterEfficiency,
+          },
+          audit,
+        )
+      : calculateDailyLoad(input.loads, inverterEfficiency, audit);
 
   // 2. System voltage ------------------------------------------------------
   const recommendedVoltage = recommendSystemVoltage(dailyLoad.peakSimultaneousWatts);

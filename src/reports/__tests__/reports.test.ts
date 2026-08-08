@@ -88,6 +88,11 @@ function makeScenario(name: string, designResult: ReturnType<typeof sampleResult
     selectedInverterId: null,
     selectedBatteryId: null,
     selectedControllerId: null,
+    loadMode: 'appliances' as const,
+    totalDailyKwh: null,
+    totalPeakKw: null,
+    totalSurgeKw: null,
+    totalLoadIsAc: true,
     loads: [],
     designResult,
     createdAt: '2026-01-01',
@@ -180,6 +185,11 @@ describe('report builders (pure TS)', () => {
           selectedInverterId: null,
           selectedBatteryId: null,
           selectedControllerId: null,
+          loadMode: 'appliances',
+          totalDailyKwh: null,
+          totalPeakKw: null,
+          totalSurgeKw: null,
+          totalLoadIsAc: true,
           loads: result.input.loads,
           designResult: result,
           createdAt: '2026-01-01',
@@ -200,6 +210,35 @@ describe('report builders (pure TS)', () => {
   test('parseProjectImport rejects non-backup JSON', () => {
     expect(() => parseProjectImport('{"hello": 1}')).toThrow(/not a SlorCalcPro/);
     expect(() => parseProjectImport('not json')).toThrow(/Invalid JSON/);
+  });
+
+  test('project export → import round-trips total load mode fields', () => {
+    const project: ProjectWithScenarios = {
+      id: 'p1',
+      name: 'Meter Site',
+      clientName: '',
+      notes: '',
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+      scenarios: [
+        {
+          ...makeScenario('total', null),
+          loadMode: 'total',
+          totalDailyKwh: 12.5,
+          totalPeakKw: 3.2,
+          totalSurgeKw: 6.4,
+          totalLoadIsAc: false,
+        },
+      ],
+    };
+
+    const parsed = parseProjectImport(exportProject(project));
+    const scenario = parsed.project.scenarios[0];
+    expect(scenario.loadMode).toBe('total');
+    expect(scenario.totalDailyKwh).toBe(12.5);
+    expect(scenario.totalPeakKw).toBe(3.2);
+    expect(scenario.totalSurgeKw).toBe(6.4);
+    expect(scenario.totalLoadIsAc).toBe(false);
   });
 
   test('buildSldDiagram links every edge to existing nodes', () => {
@@ -259,6 +298,11 @@ describe('report builders (pure TS)', () => {
         selectedInverterId: null,
         selectedBatteryId: null,
         selectedControllerId: null,
+        loadMode: 'appliances',
+        totalDailyKwh: null,
+        totalPeakKw: null,
+        totalSurgeKw: null,
+        totalLoadIsAc: true,
         loads: result.input.loads,
         designResult: result,
         createdAt: '2026-01-01',
