@@ -17,6 +17,7 @@ import type { AnySpec, SpecByKind } from '@/db/repos/catalog';
 import type { ComponentKind, PshLocation } from '@/data/types';
 import { useCatalogStore } from '@/store/catalog';
 
+import { CatalogEditor } from './CatalogEditor';
 import { NumberField } from './form';
 
 /** One-line human summary of a component's key specs. */
@@ -58,6 +59,7 @@ export function ComponentSlot(props: {
   const loadKind = useCatalogStore((s) => s.loadKind);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [adding, setAdding] = useState(false);
   const theme = useTheme();
 
   const filtered = useMemo(() => {
@@ -76,10 +78,24 @@ export function ComponentSlot(props: {
     setOpen((v) => !v);
   };
 
-  const choose = (id: string) => {
-    onSelect(id);
+  const close = () => {
     setOpen(false);
     setQuery('');
+  };
+
+  const choose = (id: string) => {
+    onSelect(id);
+    close();
+  };
+
+  const chooseReference = () => {
+    onSelect(null);
+    close();
+  };
+
+  const handleCustomCreated = (id: string) => {
+    loadKind(kind).catch(() => {});
+    choose(id);
   };
 
   return (
@@ -87,7 +103,9 @@ export function ComponentSlot(props: {
       <Card.Title
         title={label}
         subtitle={
-          selected ? `${selected.brand} ${selected.model}` : 'Auto-suggest (not selected yet)'
+          selected
+            ? `${selected.brand} ${selected.model}`
+            : 'Not selected — reference values are used'
         }
         right={() =>
           selected ? (
@@ -133,6 +151,12 @@ export function ComponentSlot(props: {
             nestedScrollEnabled
             style={styles.list}
           >
+            <List.Item
+              title="Auto / Reference values"
+              description="No specific model — the app uses reference specifications"
+              onPress={chooseReference}
+              left={() => <List.Icon icon="auto-fix" color={theme.colors.secondary} />}
+            />
             {filtered.map((item) => (
               <List.Item
                 key={item.id}
@@ -147,10 +171,49 @@ export function ComponentSlot(props: {
                 )}
               />
             ))}
+            <List.Item
+              title="Add custom component…"
+              description="Enter specs for any brand, even if not in the catalog"
+              onPress={() => setAdding(true)}
+              left={() => <List.Icon icon="plus" color={theme.colors.primary} />}
+            />
           </ScrollView>
         </Card.Content>
       ) : null}
+      <CustomComponentDialog
+        kind={kind}
+        visible={adding}
+        onDismiss={() => setAdding(false)}
+        onCreated={handleCustomCreated}
+      />
     </Card>
+  );
+}
+
+export function CustomComponentDialog(props: {
+  kind: ComponentKind;
+  visible: boolean;
+  onDismiss: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const { kind, visible, onDismiss, onCreated } = props;
+
+  const save = async (brand: string, model: string, spec: AnySpec) => {
+    const { catalogRepo } = await import('@/db/repos/catalog');
+    const { getDbService } = await import('@/store/dbService');
+    const record = await catalogRepo(getDbService()).create(kind, brand, model, spec);
+    onCreated(record.id);
+    onDismiss();
+  };
+
+  return (
+    <Portal>
+      <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
+        <Dialog.ScrollArea>
+          <CatalogEditor kind={kind} initial={null} onSave={save} onCancel={onDismiss} />
+        </Dialog.ScrollArea>
+      </Dialog>
+    </Portal>
   );
 }
 
@@ -341,6 +404,9 @@ const styles = StyleSheet.create({
   },
   list: {
     maxHeight: 260,
+  },
+  dialog: {
+    maxHeight: '90%',
   },
   chips: {
     flexDirection: 'row',

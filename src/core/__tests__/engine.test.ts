@@ -142,3 +142,34 @@ describe('designSystem — off-grid design', () => {
     expect(result.pv.arrayVocV).toBeLessThanOrEqual(150);
   });
 });
+
+describe('designSystem — standards policy', () => {
+  const nonCompliant = (): SystemInput => ({
+    loads: [{ id: 'l1', name: 'Fridge', quantity: 1, powerWatts: 150, hoursPerDay: 24, isAc: true, isSimultaneous: true, isInductive: true, surgeFactor: 3 }],
+    systemType: 'off-grid',
+    winterPsh: 4.0,
+    summerPsh: 6.0,
+    autonomyDays: 2,
+    chemistry: 'lifepo4',
+    systemVoltageOverride: 48,
+  });
+
+  it('keeps standards errors in strict mode', () => {
+    const result = designSystem(nonCompliant());
+    const voc = result.warnings.find((w) => w.code === 'NEC690-7-VOC');
+    expect(voc).toBeDefined();
+    expect(voc?.severity).toBe('error');
+  });
+
+  it('downgrades standards errors to warnings in advisory mode', () => {
+    const result = designSystem({ ...nonCompliant(), standardsPolicy: 'advisory' });
+    const voc = result.warnings.find((w) => w.code === 'NEC690-7-VOC');
+    expect(voc?.severity).toBe('warning');
+    expect(result.warnings.filter((w) => w.severity === 'error')).toHaveLength(0);
+  });
+
+  it('hides standards checks in off mode', () => {
+    const result = designSystem({ ...nonCompliant(), standardsPolicy: 'off' });
+    expect(result.warnings.some((w) => w.code.startsWith('NEC'))).toBe(false);
+  });
+});

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { settingsRepo } from '../db/repos/settings';
+import type { StandardsPolicy } from '../core/types';
 import { getDbService } from './dbService';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -17,6 +18,7 @@ const CABLE_KEY = 'ui.units.cable';
 const TEMP_KEY = 'ui.units.temp';
 const DEFAULT_PSH_KEY = 'ui.default_psh_location';
 const WIZARD_KEY = 'ui.wizard_mode';
+const STANDARDS_KEY = 'ui.standards_policy';
 
 export interface UnitSettings {
   power: PowerUnit;
@@ -56,18 +58,24 @@ function isWizardMode(v: string | null): v is WizardMode {
   return v === 'wizard' || v === 'expert';
 }
 
+function isStandardsPolicy(v: string | null): v is StandardsPolicy {
+  return v === 'strict' || v === 'advisory' || v === 'off';
+}
+
 interface SettingsState {
   loaded: boolean;
   themeMode: ThemeMode;
   units: UnitSettings;
   defaultPshLocationId: string | null;
   wizardMode: WizardMode;
+  standardsPolicy: StandardsPolicy;
 
   load: () => Promise<void>;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   setUnits: (patch: Partial<UnitSettings>) => Promise<void>;
   setDefaultPshLocationId: (id: string | null) => Promise<void>;
   setWizardMode: (mode: WizardMode) => Promise<void>;
+  setStandardsPolicy: (policy: StandardsPolicy) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -76,18 +84,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   units: DEFAULT_UNITS,
   defaultPshLocationId: null,
   wizardMode: 'wizard',
+  standardsPolicy: 'strict',
 
   load: async () => {
     const repo = settingsRepo(getDbService());
-    const [theme, power, length, cable, temp, defaultPsh, wizard] = await Promise.all([
-      repo.get(THEME_KEY),
-      repo.get(POWER_KEY),
-      repo.get(LENGTH_KEY),
-      repo.get(CABLE_KEY),
-      repo.get(TEMP_KEY),
-      repo.get(DEFAULT_PSH_KEY),
-      repo.get(WIZARD_KEY),
-    ]);
+    const [theme, power, length, cable, temp, defaultPsh, wizard, standards] =
+      await Promise.all([
+        repo.get(THEME_KEY),
+        repo.get(POWER_KEY),
+        repo.get(LENGTH_KEY),
+        repo.get(CABLE_KEY),
+        repo.get(TEMP_KEY),
+        repo.get(DEFAULT_PSH_KEY),
+        repo.get(WIZARD_KEY),
+        repo.get(STANDARDS_KEY),
+      ]);
     set({
       loaded: true,
       themeMode: isThemeMode(theme) ? theme : 'system',
@@ -99,6 +110,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       },
       defaultPshLocationId: defaultPsh ?? null,
       wizardMode: isWizardMode(wizard) ? wizard : 'wizard',
+      standardsPolicy: isStandardsPolicy(standards) ? standards : 'strict',
     });
   },
 
@@ -129,5 +141,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setWizardMode: async (mode) => {
     await settingsRepo(getDbService()).set(WIZARD_KEY, mode);
     set({ wizardMode: mode });
+  },
+
+  setStandardsPolicy: async (policy) => {
+    await settingsRepo(getDbService()).set(STANDARDS_KEY, policy);
+    set({ standardsPolicy: policy });
   },
 }));

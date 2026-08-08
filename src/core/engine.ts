@@ -15,6 +15,7 @@ import { calculatePvArray, type StringConstraints } from './formulas/pv';
 import { recommendSystemVoltage } from './formulas/systemVoltage';
 import { iecChecks } from './standards/iec';
 import { necChecks } from './standards/nec';
+import { applyStandardsPolicy } from './standards/policy';
 import type {
   BatteryResult,
   ChargeControllerSpec,
@@ -189,7 +190,7 @@ export function designSystem(input: SystemInput): DesignResult {
   });
 
   // 10. Standards checks ---------------------------------------------------
-  warnings.push(
+  const standardsWarnings = [
     ...necChecks({
       arrayVocColdV,
       maxPvInputVoltageV,
@@ -203,8 +204,6 @@ export function designSystem(input: SystemInput): DesignResult {
       pvBreakerA: protection.acBreakerStandardA,
       busbarRatingA: input.busbarRatingA ?? 200,
     }),
-  );
-  warnings.push(
     ...iecChecks({
       pvVoltageDropPercent: cables.pvSource.voltageDropPercent,
       dcVoltageDropLimitPercent: input.dcVoltageDropPercent ?? 2,
@@ -212,7 +211,8 @@ export function designSystem(input: SystemInput): DesignResult {
       acVoltageDropLimitPercent: input.acVoltageDropPercent ?? 3,
       ampacityPasses: cables.pvSource.ampacityPasses,
     }),
-  );
+  ];
+  warnings.push(...applyStandardsPolicy(standardsWarnings, input.standardsPolicy));
 
   // 11. Engineering warnings ------------------------------------------------
   if (!inverter.voltageMatch) {

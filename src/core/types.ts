@@ -11,6 +11,17 @@ export type SystemVoltage = 12 | 24 | 48;
 
 export type ControllerType = 'MPPT' | 'PWM';
 
+/**
+ * How strictly international standards (NEC 690/705, IEC 62548) are applied:
+ * - 'strict'   every code-compliance check is enforced as-is (default);
+ * - 'advisory' standards-derived errors become warnings — components from
+ *              markets that don't follow international codes exactly are still
+ *              accepted, and the result is produced either way;
+ * - 'off'      standards checks are hidden entirely (engineering safety checks
+ *              such as cable ampacity and string feasibility always remain).
+ */
+export type StandardsPolicy = 'strict' | 'advisory' | 'off';
+
 /** A single appliance entry in the load audit. */
 export interface LoadItem {
   id: string;
@@ -162,6 +173,11 @@ export interface SystemInput {
   busbarRatingA?: number;
   /** Main breaker rating (A), default 200. */
   mainBreakerA?: number;
+  /**
+   * How strictly international standards are enforced.
+   * Default 'strict'; see {@link StandardsPolicy}.
+   */
+  standardsPolicy?: StandardsPolicy;
   /** Selected components (auto-suggested if absent). */
   selected?: {
     panel?: PanelSpec;

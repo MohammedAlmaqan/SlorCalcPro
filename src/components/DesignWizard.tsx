@@ -22,6 +22,7 @@ import type {
   InverterSpec,
   LoadItem,
   PanelSpec,
+  StandardsPolicy,
   SystemInput,
   SystemType,
   SystemVoltage,
@@ -125,6 +126,9 @@ export function DesignWizard(props: {
     return { panel, inverter, battery, controller };
   }, [lists, selectedPanelId, selectedInverterId, selectedBatteryId, selectedControllerId]);
 
+  const standardsPolicy = useSettingsStore((s) => s.standardsPolicy);
+  const setStandardsPolicy = useSettingsStore((s) => s.setStandardsPolicy);
+
   const input = useMemo<SystemInput>(() => {
     return {
       loads,
@@ -135,6 +139,7 @@ export function DesignWizard(props: {
       chemistry,
       systemVoltageOverride: voltage === 'auto' ? undefined : (Number(voltage) as SystemVoltage),
       minTemperatureC: minTemperatureC ?? undefined,
+      standardsPolicy,
       selected: {
         panel: resolved.panel,
         inverter: resolved.inverter,
@@ -151,6 +156,7 @@ export function DesignWizard(props: {
     chemistry,
     voltage,
     minTemperatureC,
+    standardsPolicy,
     resolved,
   ]);
 
@@ -449,7 +455,14 @@ export function DesignWizard(props: {
   );
 
   const step5 = (
-    <ResultsView result={result} error={resultError} onAutoSuggest={autoSuggest} busy={busy} />
+    <ResultsView
+      result={result}
+      error={resultError}
+      onAutoSuggest={autoSuggest}
+      busy={busy}
+      standardsPolicy={standardsPolicy}
+      onStandardsPolicyChange={setStandardsPolicy}
+    />
   );
 
   return (
@@ -555,8 +568,10 @@ function ResultsView(props: {
   error: string | null;
   onAutoSuggest: () => void;
   busy: boolean;
+  standardsPolicy: StandardsPolicy;
+  onStandardsPolicyChange: (policy: StandardsPolicy) => void;
 }) {
-  const { result, error, onAutoSuggest, busy } = props;
+  const { result, error, onAutoSuggest, busy, standardsPolicy, onStandardsPolicyChange } = props;
   const theme = useTheme();
   const f = useUnitFormatters();
   const powerUnit = useSettingsStore((s) => s.units.power);
@@ -619,6 +634,23 @@ function ResultsView(props: {
       </View>
 
       <SectionTitle title="Compliance & warnings" icon="shield-alert-outline" />
+      <SegmentedField
+        label="Standards policy"
+        value={standardsPolicy}
+        onChange={(v) => onStandardsPolicyChange(v as StandardsPolicy)}
+        options={[
+          { value: 'strict', label: 'Strict' },
+          { value: 'advisory', label: 'Advisory' },
+          { value: 'off', label: 'Off' },
+        ]}
+      />
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        {standardsPolicy === 'strict'
+          ? 'International codes enforced as-is.'
+          : standardsPolicy === 'advisory'
+            ? 'Standards checks shown as advisories — local-market components are accepted.'
+            : 'Standards checks hidden; engineering safety checks still apply.'}
+      </Text>
       <WarningsList warnings={result.warnings} />
 
       <SectionTitle title="Electrical summary" icon="format-list-bulleted" />

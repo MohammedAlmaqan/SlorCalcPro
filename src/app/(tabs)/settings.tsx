@@ -110,6 +110,28 @@ export default function SettingsScreen() {
         </Card>
 
         <Card mode="outlined">
+          <Card.Title title="Standards & compliance" titleVariant="titleMedium" />
+          <Divider />
+          <Card.Content>
+            <SegmentedField
+              label="Standards policy"
+              value={settings.standardsPolicy}
+              onChange={(v) => settings.setStandardsPolicy(v as 'strict' | 'advisory' | 'off')}
+              options={[
+                { value: 'strict', label: 'Strict' },
+                { value: 'advisory', label: 'Advisory' },
+                { value: 'off', label: 'Off' },
+              ]}
+            />
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Strict enforces international codes (NEC/IEC). Advisory keeps results usable when
+              local-market components do not meet every code. Off hides standards checks. Safety
+              checks (cable sizing) always remain.
+            </Text>
+          </Card.Content>
+        </Card>
+
+        <Card mode="outlined">
           <List.Item
             title="Engineering reference"
             description="NEC 690/705 & IEC 62548 formulas and conventions used by the engine"
