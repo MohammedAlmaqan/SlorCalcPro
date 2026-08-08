@@ -1,0 +1,52 @@
+# .easignore — files excluded from the EAS Build project archive.
+# Once this file exists it REPLACES .gitignore for EAS, so it must contain
+# every pattern from .gitignore (plus anything else the build doesn't need).
+# NOTE: keep package.json, package-lock.json, app.json, eas.json, tsconfig.json,
+# src/, plugins/ and assets/ — EAS Build needs them to compile the app.
+
+# --- dependencies (installed fresh on the EAS server) ---
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# --- Expo tooling output ---
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro/
+.metro-health-check*
+*.tsbuildinfo
+
+# --- native project generation / caches (EAS runs prebuild itself) ---
+/ios
+/android
+.kotlin/
+.gradle/
+build/
+.cxx/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+*.pem
+
+# --- version control ---
+.git/
+
+# --- local editor / tooling ---
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# --- test coverage reports ---
+coverage/
+*.lcov
+
+# --- local env files ---
+.env*.local

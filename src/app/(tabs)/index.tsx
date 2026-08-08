@@ -112,11 +112,13 @@ export default function ProjectsScreen() {
             >
               <Card.Title
                 title={item.name}
+                titleNumberOfLines={2}
                 subtitle={
                   item.clientName
                     ? `${item.clientName} · updated ${new Date(item.updatedAt).toLocaleDateString()}`
                     : `Updated ${new Date(item.updatedAt).toLocaleDateString()}`
                 }
+                subtitleNumberOfLines={2}
                 left={ProjectAvatar}
                 right={() => (
                   <Menu

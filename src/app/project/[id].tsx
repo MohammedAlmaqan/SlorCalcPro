@@ -87,7 +87,10 @@ export default function ProjectDetailScreen() {
             <View style={styles.titleRow}>
               <Text
                 variant="titleMedium"
-                style={isActive ? { color: theme.colors.onPrimaryContainer } : undefined}
+                style={[
+                  styles.scenarioName,
+                  isActive ? { color: theme.colors.onPrimaryContainer } : undefined,
+                ]}
               >
                 {scenario.name}
               </Text>
@@ -99,6 +102,7 @@ export default function ProjectDetailScreen() {
               ? `${Math.round(result.pv.actualArrayWatts)} W array · ${Math.round(result.dailyLoad.totalWhPerDay)} Wh/day`
               : 'Not designed yet'
           }
+          subtitleNumberOfLines={2}
           left={() => (
             <View
               style={[
@@ -305,5 +309,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  scenarioName: {
+    flexShrink: 1,
   },
 });

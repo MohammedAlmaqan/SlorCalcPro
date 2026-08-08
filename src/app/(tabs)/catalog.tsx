@@ -117,6 +117,7 @@ export default function CatalogScreen() {
           <Card mode="outlined" style={styles.card}>
             <Card.Title
               title={`${item.brand} ${item.model}`}
+              titleNumberOfLines={2}
               subtitle={specSummary(kind, item.spec)}
               subtitleNumberOfLines={3}
               right={() => (

@@ -107,6 +107,7 @@ export function ComponentSlot(props: {
             ? `${selected.brand} ${selected.model}`
             : 'Not selected — reference values are used'
         }
+        subtitleNumberOfLines={3}
         right={() =>
           selected ? (
             <View style={styles.slotActions}>
@@ -146,11 +147,7 @@ export function ComponentSlot(props: {
             onChangeText={setQuery}
             style={styles.search}
           />
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            style={styles.list}
-          >
+          <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={styles.list}>
             <List.Item
               title="Auto / Reference values"
               description="No specific model — the app uses reference specifications"
@@ -247,6 +244,7 @@ export function PshPicker(props: {
             ? `${selected.city}, ${selected.country}`
             : 'Pick a bundled city or enter PSH manually'
         }
+        subtitleNumberOfLines={2}
         right={() => (
           <Button mode="contained-tonal" onPress={() => setOpen((v) => !v)} compact>
             {selected ? 'Change' : 'Choose'}
@@ -269,11 +267,7 @@ export function PshPicker(props: {
             onChangeText={setQuery}
             style={styles.search}
           />
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            style={styles.list}
-          >
+          <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={styles.list}>
             {filtered.map((item) => (
               <List.Item
                 key={item.id}
